@@ -10,7 +10,11 @@ const state = {
   provinciaSeleccionada: null,
   backendUrl: 'http://localhost:8000',
   chartsInicializados: false,
-  charts: {}
+  charts: {},
+  datosActuales: null,       // Guardar respuesta raw del backend
+  filtroSeccion: "noticias", // 'noticias' | 'verificaciones' | 'tweets' | 'bluesky'
+  filtroAnio: "todos",        // 'todos' | '2026' | '2025' | '2024' | '2023'
+  feedCache: {}              // Cache client-side: feedCache[provincia][seccion]
 };
 
 /**
@@ -48,6 +52,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initMap();
   initNavListeners();
   initSearchListeners();
+  initFilterListeners();
 });
 
 /**
@@ -219,6 +224,34 @@ function initSearchListeners() {
 }
 
 /**
+ * EventListeners para los Filtros Separados del Sidebar (Sección y Año)
+ */
+function initFilterListeners() {
+  const filterSection = document.getElementById("filter-section");
+  const filterYear = document.getElementById("filter-year");
+
+  if (filterSection) {
+    state.filtroSeccion = filterSection.value || "noticias";
+
+    filterSection.addEventListener("change", (e) => {
+      state.filtroSeccion = e.target.value;
+      if (state.provinciaSeleccionada) {
+        cargarNoticiasBackend(state.provinciaSeleccionada, state.filtroSeccion);
+      }
+    });
+  }
+
+  if (filterYear) {
+    filterYear.addEventListener("change", (e) => {
+      state.filtroAnio = e.target.value;
+      if (state.datosActuales) {
+        renderizarResultados(state.datosActuales);
+      }
+    });
+  }
+}
+
+/**
  * Lógica al seleccionar una provincia (flyTo a las coordenadas centrales y carga del backend)
  */
 function seleccionarProvincia(provincia) {
@@ -258,8 +291,8 @@ function seleccionarProvincia(provincia) {
   // Actualizar la interfaz del panel lateral
   actualizarSidebar(provincia.nombre);
 
-  // Petición al backend
-  cargarNoticiasBackend(provincia.nombre);
+  // Petición rápida al backend por la sección seleccionada (< 1s)
+  cargarNoticiasBackend(provincia.nombre, state.filtroSeccion);
 }
 
 /**
@@ -277,22 +310,46 @@ function actualizarSidebar(nombreProvincia) {
   }
 }
 
+function obtenerNombreSeccion(seccion) {
+  const nombres = {
+    noticias: "Noticias de Prensa",
+    verificaciones: "Fact-Check / Posibles Falsas",
+    tweets: "X (Twitter)",
+    bluesky: "Bluesky"
+  };
+  return nombres[seccion] || seccion;
+}
+
 /**
- * Petición fetch al backend para obtener noticias por provincia
+ * Petición fetch on-demand al backend para obtener noticias por sección (< 1s)
  */
-async function cargarNoticiasBackend(provincia) {
+async function cargarNoticiasBackend(provincia, seccion = state.filtroSeccion) {
   const sidebarContent = document.getElementById("sidebar-content");
+  state.filtroSeccion = seccion;
+
+  // Inicializar cache para la provincia si no existe
+  if (!state.feedCache[provincia]) {
+    state.feedCache[provincia] = {};
+  }
+
+  // Si la sección ya fue descargada para esta provincia, cargar de inmediato (0ms)
+  if (state.feedCache[provincia][seccion]) {
+    console.log(`[Cache Hit] Carga instantánea de '${seccion}' para ${provincia}`);
+    state.datosActuales = state.feedCache[provincia][seccion];
+    renderizarResultados(state.datosActuales);
+    return;
+  }
 
   sidebarContent.innerHTML = `
     <div class="state-box">
       <div class="spinner"></div>
-      <div class="state-title">Cargando información...</div>
-      <div class="state-desc">Consultando publicaciones detectadas en <strong>${provincia}</strong>.</div>
+      <div class="state-title">Cargando ${escaparHtml(obtenerNombreSeccion(seccion))}...</div>
+      <div class="state-desc">Consultando la sección <strong>${escaparHtml(obtenerNombreSeccion(seccion))}</strong> en <strong>${provincia}</strong>.</div>
     </div>
   `;
 
   try {
-    const endpoint = `${state.backendUrl}/api/noticias?provincia=${encodeURIComponent(provincia)}`;
+    const endpoint = `${state.backendUrl}/api/noticias?provincia=${encodeURIComponent(provincia)}&seccion=${encodeURIComponent(seccion)}`;
     const response = await fetch(endpoint);
 
     if (!response.ok) {
@@ -300,6 +357,8 @@ async function cargarNoticiasBackend(provincia) {
     }
 
     const data = await response.json();
+    state.feedCache[provincia][seccion] = data;
+    state.datosActuales = data;
     renderizarResultados(data);
 
   } catch (error) {
@@ -317,24 +376,63 @@ async function cargarNoticiasBackend(provincia) {
 }
 
 /**
- * Renderiza el feed unificado en tiempo real con advertencias claras de Google Fact Check
+ * Helpers para el filtrado por año
+ */
+function obtenerAnioItem(item) {
+  if (item.anio) return String(item.anio);
+  const textDate = item.fecha || item.date || "";
+  const match = String(textDate).match(/\b(202[0-9])\b/);
+  return match ? match[1] : "2026";
+}
+
+function itemCumpleAnio(item, filtroAnio) {
+  if (filtroAnio === "todos") return true;
+  const anio = obtenerAnioItem(item);
+  if (filtroAnio === "2023") {
+    return parseInt(anio) <= 2023;
+  }
+  return anio === filtroAnio;
+}
+
+/**
+ * Renderiza el feed unificado en tiempo real con filtrado por Sección y Año (Prensa, Fact-Check, X, Bluesky)
  */
 function renderizarResultados(data) {
   const sidebarContent = document.getElementById("sidebar-content");
-  const noticias = data.tiempo_real || [];
-  const verificaciones = data.verificaciones || [];
-  const tweets = data.tweets_recientes || [];
+  const seccion = state.filtroSeccion;
+  const anio = state.filtroAnio;
 
-  const totalElementos = noticias.length + verificaciones.length + tweets.length;
+  const rawNoticias = data.tiempo_real || [];
+  const rawVerificaciones = data.verificaciones || [];
+  const rawTweets = data.tweets_recientes || [];
+  const rawBluesky = data.bluesky_posts || [];
+
+  const noticias = (seccion === "todas" || seccion === "noticias")
+    ? rawNoticias.filter(item => itemCumpleAnio(item, anio))
+    : [];
+
+  const verificaciones = (seccion === "todas" || seccion === "verificaciones")
+    ? rawVerificaciones.filter(item => itemCumpleAnio(item, anio))
+    : [];
+
+  const tweets = (seccion === "todas" || seccion === "tweets")
+    ? rawTweets.filter(item => itemCumpleAnio(item, anio))
+    : [];
+
+  const blueskyPosts = (seccion === "todas" || seccion === "bluesky")
+    ? rawBluesky.filter(item => itemCumpleAnio(item, anio))
+    : [];
+
+  const totalElementos = noticias.length + verificaciones.length + tweets.length + blueskyPosts.length;
 
   if (totalElementos === 0) {
     sidebarContent.innerHTML = `
       <div class="state-box">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
         </svg>
-        <div class="state-title">Sin registros para ${escaparHtml(data.provincia)}</div>
-        <div class="state-desc">No se encontró información ni publicaciones recientes para esta provincia.</div>
+        <div class="state-title">Sin resultados para los filtros aplicados</div>
+        <div class="state-desc">No se encontraron publicaciones en <strong>${escaparHtml(data.provincia)}</strong> para la sección <em>"${escaparHtml(seccion)}"</em> y año <em>"${escaparHtml(anio)}"</em>.<br><br>Prueba seleccionando <strong>"Todas las secciones"</strong> o <strong>"Todos los años"</strong>.</div>
       </div>
     `;
     return;
@@ -505,6 +603,55 @@ function renderizarResultados(data) {
     });
   }
 
+  // 4. SECCIÓN: Publicaciones en Bluesky (AT Protocol)
+  if (blueskyPosts.length > 0) {
+    html += `
+      <div class="section-title-container" style="margin-top: 20px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="display: inline-block; width: 10px; height: 10px; background-color: #0285ff; border-radius: 50%;"></span>
+          <h3 style="font-size: 0.95rem; font-weight: 700; color: #0f172a;">Publicaciones en Bluesky (${blueskyPosts.length})</h3>
+        </div>
+        <span style="font-size: 0.75rem; color: #0285ff; font-weight: 600;">🦋 Red Descentralizada</span>
+      </div>
+    `;
+
+    blueskyPosts.forEach((bp) => {
+      const author = bp.author || {};
+      const stats = bp.stats || {};
+      const dateFormatted = bp.date ? String(bp.date).split('T')[0] : '';
+
+      html += `
+        <div class="ad-card" style="border-left: 4px solid #0285ff;">
+          <div class="ad-card-header" style="margin-bottom: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <div style="font-weight: 700; font-size: 0.9rem; color: #0f172a;">${escaparHtml(author.name || 'Usuario Bluesky')}</div>
+              <div style="font-size: 0.8rem; color: #64748b;">${escaparHtml(author.handle || '')}</div>
+            </div>
+            <span style="font-size: 0.75rem; color: #94a3b8;">${escaparHtml(dateFormatted)}</span>
+          </div>
+
+          <div class="ad-body" style="font-size: 0.875rem; color: #1e293b; line-height: 1.45; margin-bottom: 12px;">
+            ${escaparHtml(bp.text)}
+          </div>
+
+          <div class="ad-meta-grid">
+            <div>❤️ <strong>${stats.likes || 0}</strong></div>
+            <div>🔄 <strong>${stats.reposts || 0}</strong></div>
+            <div>💬 <strong>${stats.replies || 0}</strong></div>
+            <div>💬 <strong>${stats.quotes || 0}</strong></div>
+          </div>
+
+          <div class="ad-footer" style="margin-top: 10px;">
+            <span style="font-size: 0.75rem; color: #0285ff; font-weight: 600;">🦋 Bluesky</span>
+            <a href="${bp.link}" target="_blank" rel="noopener noreferrer" class="btn-meta" style="background: #0285ff;">
+              Ver en Bluesky
+            </a>
+          </div>
+        </div>
+      `;
+    });
+  }
+
   sidebarContent.innerHTML = html;
 }
 
@@ -539,15 +686,20 @@ function renderizarChartFuentes(data) {
   const ctx = document.getElementById("chartFuentes");
   if (!ctx) return;
 
-  const fuentes = data?.distribucion_fuentes || { prensa_tiempo_real: 45, fact_checks: 25, redes_sociales_x: 30 };
+  const fuentes = data?.distribucion_fuentes || { prensa_tiempo_real: 40, fact_checks: 20, redes_sociales_x: 25, bluesky_feed: 15 };
 
   state.charts.fuentes = new Chart(ctx, {
     type: "doughnut",
     data: {
-      labels: ["Prensa en Tiempo Real", "Google Fact Check", "Redes Sociales (X)"],
+      labels: ["Prensa en Tiempo Real", "Google Fact Check", "Redes Sociales (X)", "Bluesky (AT Protocol)"],
       datasets: [{
-        data: [fuentes.prensa_tiempo_real, fuentes.fact_checks, fuentes.redes_sociales_x],
-        backgroundColor: ["#4f46e5", "#ef4444", "#1d9bf0"],
+        data: [
+          fuentes.prensa_tiempo_real || 40, 
+          fuentes.fact_checks || 20, 
+          fuentes.redes_sociales_x || 25,
+          fuentes.bluesky_feed || 15
+        ],
+        backgroundColor: ["#4f46e5", "#ef4444", "#1d9bf0", "#0285ff"],
         borderWidth: 2,
         borderColor: "#ffffff"
       }]

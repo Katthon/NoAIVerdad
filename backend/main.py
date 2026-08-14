@@ -47,25 +47,21 @@ def read_root():
 def obtener_noticias_y_tweets_por_provincia(
     provincia: str = Query(
         ...,
-        description="Nombre de la provincia de Ecuador a consultar (ej: Pichincha, Guayas, Azuay)",
-        example="Pichincha"
+        description="Nombre de la provincia de Ecuador a consultar (ej: Pichincha, Guayas, Azuay)"
+    ),
+    seccion: str = Query(
+        None,
+        description="Sección a consultar bajo demanda (noticias, verificaciones, tweets, bluesky)"
     )
 ):
     """
-    Endpoint Unificado SIMULTÁNEO: `GET /api/noticias?provincia={nombre_provincia}`.
+    Endpoint Rápido por Demanda: `GET /api/noticias?provincia={nombre_provincia}&seccion={seccion}`.
     
-    Ejecuta 3 búsquedas concurrentes en tiempo real sin datos quemados:
-    1. Tarea A: Noticias en tiempo real (GNews API + Google News RSS en vivo).
-    2. Tarea B: Fact-Checking de desinformación (Google Fact Check Tools API).
-    3. Tarea C: Extracción no oficial de publicaciones en X (Twitter) vía ntscraper.
-    
-    Devuelve un JSON consolidado:
-    {
-      "provincia": "Pichincha",
-      "tiempo_real": [ ...noticias_reales ],
-      "verificaciones": [ ...factchecks_reales ],
-      "tweets_recientes": [ ...tweets_reales_x ]
-    }
+    Carga ultra rápida (< 1s) filtrando una única fuente por solicitud:
+    - `seccion=noticias`: Prensa en tiempo real
+    - `seccion=verificaciones`: Google Fact Check
+    - `seccion=tweets`: Publicaciones en X / Twitter
+    - `seccion=bluesky`: Publicaciones en vivo en Bluesky
     """
     if not provincia or not provincia.strip():
         raise HTTPException(status_code=400, detail="El parámetro 'provincia' es obligatorio.")
@@ -73,8 +69,10 @@ def obtener_noticias_y_tweets_por_provincia(
     provincia_limpia = provincia.strip()
 
     try:
-        # Consulta simultánea en tiempo real
-        feed = unified_service.obtener_feed_completo(provincia_limpia)
+        if seccion:
+            feed = unified_service.obtener_feed_por_seccion(provincia_limpia, seccion)
+        else:
+            feed = unified_service.obtener_feed_completo(provincia_limpia)
         return feed
 
     except Exception as e:
@@ -83,6 +81,7 @@ def obtener_noticias_y_tweets_por_provincia(
             "tiempo_real": [],
             "verificaciones": [],
             "tweets_recientes": [],
+            "bluesky_posts": [],
             "error": True,
             "mensaje": f"Error obteniendo feed para {provincia_limpia}: {str(e)}"
         }
