@@ -1,0 +1,408 @@
+/* ==========================================================================
+   NoAIVerdad - Estilos de la Plataforma Cívica (Ecuador)
+   Estética: Moderna, limpia, glassmorphism, responsive, tipografía prémium
+   ========================================================================== */
+
+:root {
+  --primary-color: #4f46e5;      /* Índigo vibrante */
+  --primary-hover: #4338ca;
+  --secondary-color: #06b6d4;    /* Cían */
+  --accent-color: #f59e0b;       /* Ámbar de alerta/destacado */
+  --bg-dark: #0f172a;            /* Azul noche oscuro */
+  --bg-sidebar: #1e293b;         /* Azul pizarra */
+  --bg-card: #ffffff;
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  --text-light: #f8fafc;
+  --border-color: #e2e8f0;
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --radius-lg: 12px;
+  --radius-md: 8px;
+  --sidebar-width: 420px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background-color: var(--bg-dark);
+  color: var(--text-main);
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* --- Header / Top Bar --- */
+.header {
+  height: 64px;
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  z-index: 20;
+}
+
+.brand-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-logo {
+  width: 36px;
+  height: 36px;
+  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 800;
+  font-size: 1.1rem;
+  box-shadow: 0 0 15px rgba(79, 70, 229, 0.4);
+}
+
+.brand-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-light);
+  letter-spacing: -0.5px;
+}
+
+.brand-title span {
+  color: var(--secondary-color);
+}
+
+.brand-subtitle {
+  font-size: 0.8rem;
+  color: #94a3b8;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
+/* --- Layout Principal --- */
+.app-container {
+  display: flex;
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Map Canvas */
+#map {
+  flex: 1;
+  height: 100%;
+  width: 100%;
+  z-index: 1;
+}
+
+/* Sidebar */
+.sidebar {
+  width: var(--sidebar-width);
+  background: #f8fafc;
+  border-left: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  z-index: 10;
+  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15);
+  transition: transform 0.3s ease;
+}
+
+.sidebar-header {
+  padding: 20px;
+  background: #ffffff;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.sidebar-title-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.sidebar-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--bg-dark);
+}
+
+.province-badge {
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+  color: #ffffff;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.sidebar-subtitle {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+/* Contenido de la Lista */
+.sidebar-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+/* Estados Varios (Cargando, Inicial, Vacío) */
+.state-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-muted);
+}
+
+.state-box svg {
+  width: 48px;
+  height: 48px;
+  margin-bottom: 16px;
+  opacity: 0.6;
+}
+
+.state-title {
+  font-weight: 600;
+  font-size: 1rem;
+  margin-bottom: 8px;
+  color: var(--text-main);
+}
+
+.state-desc {
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+/* Spinner de Carga */
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(79, 70, 229, 0.1);
+  border-top-color: var(--primary-color);
+  border-radius: 50%;
+  animation: spin 1s infinite linear;
+  margin-bottom: 16px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* --- Tarjeta de Anuncio Político --- */
+.ad-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s ease;
+}
+
+.ad-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: #cbd5e1;
+}
+
+.ad-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.ad-page-name {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--bg-dark);
+}
+
+.ad-reach-badge {
+  background: #e0e7ff;
+  color: #3730a3;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.ad-title {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--primary-hover);
+  margin-bottom: 8px;
+}
+
+.ad-body {
+  font-size: 0.85rem;
+  color: #334155;
+  line-height: 1.5;
+  margin-bottom: 12px;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.ad-meta-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  background: #f8fafc;
+  padding: 10px;
+  border-radius: var(--radius-md);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+.ad-meta-item strong {
+  display: block;
+  color: var(--text-main);
+}
+
+.ad-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.btn-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #1877f2;
+  color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 6px;
+  text-decoration: none;
+  transition: background 0.2s ease;
+}
+
+.btn-meta:hover {
+  background: #166fe5;
+}
+
+/* Indicador de Datos Sintéticos */
+.demo-banner {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #b45309;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  font-size: 0.8rem;
+  margin-bottom: 16px;
+  line-height: 1.4;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .app-container {
+    flex-direction: column;
+  }
+  .sidebar {
+    width: 100%;
+    height: 50vh;
+  }
+  #map {
+    height: 50vh;
+  }
+}
+
+/* ==========================================================================
+   REQUISITO 1: Marcadores HTML Minimalistas (province-dot)
+   ========================================================================== */
+.province-dot-marker-wrapper {
+  background: transparent !important;
+  border: none !important;
+}
+
+/* Círculo perfecto y uniforme (14px x 14px) */
+.province-dot {
+  width: 14px;
+  height: 14px;
+  background-color: #4f46e5;      /* Índigo vibrante */
+  border: 2px solid #ffffff;        /* Borde blanco nítido */
+  border-radius: 50%;               /* Círculo perfecto */
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.4), 0 0 0 1px rgba(79, 70, 229, 0.2);
+  cursor: pointer;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), 
+              background-color 0.25s ease, 
+              box-shadow 0.25s ease;
+}
+
+/* Estado Hover al pasar el ratón */
+.province-dot-marker-wrapper:hover .province-dot {
+  transform: scale(1.45);
+  background-color: #06b6d4;      /* Cían brillante */
+  box-shadow: 0 4px 14px rgba(6, 182, 212, 0.6), 0 0 0 2px rgba(255, 255, 255, 0.9);
+}
+
+/* Estado Seleccionado / Activo */
+.province-dot.active {
+  transform: scale(1.55);
+  background-color: #38bdf8;
+  border-color: #ffffff;
+  box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.4), 0 4px 18px rgba(56, 189, 248, 0.8);
+}
+
+/* ==========================================================================
+   REQUISITO 3: Tooltips Nativos de Leaflet (custom-province-tooltip)
+   ========================================================================== */
+.custom-province-tooltip {
+  background: rgba(15, 23, 42, 0.92) !important;
+  backdrop-filter: blur(8px);
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  border-radius: 6px !important;
+  font-family: 'Inter', sans-serif !important;
+  font-size: 0.8rem !important;
+  font-weight: 700 !important;
+  padding: 4px 10px !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25) !important;
+  white-space: nowrap !important;
+  letter-spacing: -0.2px;
+}
+
+/* Ocultar la flecha por defecto o estilizarla sutilmente */
+.custom-province-tooltip::before {
+  border-top-color: rgba(15, 23, 42, 0.92) !important;
+}
+
+/* Badges para el veredicto de Fact-Checking */
+.badge-danger {
+  background: #fef2f2 !important;
+  color: #991b1b !important;
+  border: 1px solid #fecaca !important;
+}
+
+.badge-warning {
+  background: #fffbeb !important;
+  color: #b45309 !important;
+  border: 1px solid #fde68a !important;
+}
+
+
+
+
