@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>NoAIVerdad - Monitoreo Electoral e Inteligencia Cívica (Ecuador)</title>
-  <meta name="description" content="Plataforma cívica para el monitoreo de desinformación y anuncios políticos electorales en Ecuador por provincia.">
+  <meta name="description" content="Plataforma cívica para el monitoreo de noticias, desinformación y publicaciones electorales en las 24 provincias de Ecuador.">
   
   <!-- Tipografía Google Fonts Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -19,7 +19,7 @@
 </head>
 <body>
 
-  <!-- Header Superior -->
+  <!-- Header Superior con Navegación y Switch de Pestañas -->
   <header class="header">
     <div class="brand-container">
       <div class="brand-logo">NV</div>
@@ -28,45 +28,182 @@
       </div>
       <span class="brand-subtitle">Ecuador Electoral 2026</span>
     </div>
-    <div style="font-size: 0.85rem; color: #94a3b8;">
-      Monitoreo Cívico con OpenStreetMap & Leaflet.js
-    </div>
+
+    <!-- Navegación Principal -->
+    <nav class="main-nav">
+      <button id="nav-btn-dashboard" class="nav-tab">
+        📊 Dashboard de Tendencias
+      </button>
+    </nav>
   </header>
 
-  <!-- Contenedor Principal (Mapa + Sidebar) -->
-  <div class="app-container">
-    <!-- Mapa de OpenStreetMap centrado en Ecuador -->
-    <div id="map"></div>
+  <!-- PESTAÑA 1: VISTA MAPA INTERACTIVO -->
+  <main id="view-mapa" class="view-section active">
+    <!-- Hero Section Llamativo con Buscador -->
+    <section class="hero-banner">
+      <div class="hero-content">
+        <span class="hero-badge">⚡ Cobertura Provincial en Tiempo Real</span>
+        <h2 class="hero-title">Verifica las noticias de las provincias de Ecuador en tiempo real</h2>
+        <p class="hero-description">
+          Explora la información electoral, cobertura periodística y publicaciones en redes sociales de las 24 provincias. 
+          Selecciona una provincia en el buscador o directamente en el mapa.
+        </p>
 
-    <!-- Panel Lateral (Sidebar) -->
-    <aside class="sidebar">
-      <div class="sidebar-header">
-        <div class="sidebar-title-container">
-          <h2 id="sidebar-title" class="sidebar-title">Noticias en: Selecciona una provincia</h2>
-          <span id="selected-province-badge" class="province-badge">Ecuador</span>
+        <!-- Buscador de Provincias -->
+        <div class="search-box-container">
+          <select id="hero-province-select" class="province-select">
+            <option value="">-- Selecciona una provincia de Ecuador --</option>
+            <option value="azuay">Azuay (Capital: Cuenca)</option>
+            <option value="bolivar">Bolívar (Capital: Guaranda)</option>
+            <option value="canar">Cañar (Capital: Azogues)</option>
+            <option value="carchi">Carchi (Capital: Tulcán)</option>
+            <option value="chimborazo">Chimborazo (Capital: Riobamba)</option>
+            <option value="cotopaxi">Cotopaxi (Capital: Latacunga)</option>
+            <option value="el_oro">El Oro (Capital: Machala)</option>
+            <option value="esmeraldas">Esmeraldas (Capital: Esmeraldas)</option>
+            <option value="galapagos">Galápagos (Capital: Puerto Baquerizo Moreno)</option>
+            <option value="guayas">Guayas (Capital: Guayaquil)</option>
+            <option value="imbabura">Imbabura (Capital: Ibarra)</option>
+            <option value="loja">Loja (Capital: Loja)</option>
+            <option value="los_rios">Los Ríos (Capital: Babahoyo)</option>
+            <option value="manabi">Manabí (Capital: Portoviejo)</option>
+            <option value="morona_santiago">Morona Santiago (Capital: Macas)</option>
+            <option value="napo">Napo (Capital: Tena)</option>
+            <option value="orellana">Orellana (Capital: Puerto Francisco de Orellana)</option>
+            <option value="pastaza">Pastaza (Capital: Puyo)</option>
+            <option value="pichincha">Pichincha (Capital: Quito)</option>
+            <option value="santa_elena">Santa Elena (Capital: Santa Elena)</option>
+            <option value="santo_domingo">Santo Domingo de los Tsáchilas (Capital: Santo Domingo)</option>
+            <option value="sucumbios">Sucumbíos (Capital: Nueva Loja)</option>
+            <option value="tungurahua">Tungurahua (Capital: Ambato)</option>
+            <option value="zamora_chinchipe">Zamora Chinchipe (Capital: Zamora)</option>
+          </select>
+
+          <button id="hero-search-btn" class="btn-search-hero">
+            🔍 Buscar en Mapa
+          </button>
         </div>
-        <p class="sidebar-subtitle">Haz clic sobre cualquier provincia en el mapa para explorar la información y propaganda política activa.</p>
+      </div>
+    </section>
+
+    <!-- Contenedor Principal (Mapa Leaflet + Sidebar) -->
+    <div class="app-container">
+      <!-- Mapa de OpenStreetMap centrado en Ecuador -->
+      <div id="map"></div>
+
+      <!-- Panel Lateral (Sidebar) -->
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <div class="sidebar-title-container">
+            <h2 id="sidebar-title" class="sidebar-title">Noticias en: Selecciona una provincia</h2>
+            <span id="selected-province-badge" class="province-badge">Ecuador</span>
+          </div>
+          <p class="sidebar-subtitle">Haz clic sobre cualquier marcador en el mapa para cargar las noticias y publicaciones en tiempo real.</p>
+        </div>
+
+        <div id="sidebar-content" class="sidebar-content">
+          <!-- Estado Inicial -->
+          <div class="state-box">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+            </svg>
+            <div class="state-title">Explora la información por provincia</div>
+            <div class="state-desc">Usa el buscador superior o haz clic sobre uno de los 24 marcadores en el mapa para ver la cobertura electoral activa.</div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <!-- PESTAÑA 2: VISTA DASHBOARD (ESTADÍSTICAS Y GRÁFICOS) -->
+  <main id="view-dashboard" class="view-section">
+    <div class="dashboard-wrapper">
+      <div class="dashboard-header">
+        <h2 class="dashboard-title">📊 Dashboard de Inteligencia Electoral</h2>
+        <p class="dashboard-subtitle">Análisis porcentual y métricas comparativas del volumen de noticias, fact-checks y redes sociales en Ecuador.</p>
       </div>
 
-      <div id="sidebar-content" class="sidebar-content">
-        <!-- Estado Inicial -->
-        <div class="state-box">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-          </svg>
-          <div class="state-title">Explora la transparencia electoral</div>
-          <div class="state-desc">Haz clic sobre una de las 24 provincias de Ecuador en el mapa para cargar las noticias y anuncios políticos filtrados por el backend.</div>
+      <!-- Tarjetas de Métricas Resumen -->
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-icon" style="background: #e0e7ff; color: #4f46e5;">📍</div>
+          <div class="metric-data">
+            <div class="metric-value">24 / 24</div>
+            <div class="metric-label">Provincias Monitoreadas</div>
+          </div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-icon" style="background: #e0f2fe; color: #0284c7;">⚡</div>
+          <div class="metric-data">
+            <div class="metric-value">100%</div>
+            <div class="metric-label">Actualización en Vivo</div>
+          </div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-icon" style="background: #fef2f2; color: #dc2626;">⚠️</div>
+          <div class="metric-data">
+            <div class="metric-value" id="metric-advertencias">18%</div>
+            <div class="metric-label">Contenido con Advertencia</div>
+          </div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-icon" style="background: #f0fdf4; color: #16a34a;">🌐</div>
+          <div class="metric-data">
+            <div class="metric-value">3 Fuentes</div>
+            <div class="metric-label">Prensa + Fact-Check + X</div>
+          </div>
         </div>
       </div>
-    </aside>
-  </div>
+
+      <!-- Rejilla de Gráficos -->
+      <div class="charts-grid">
+        <!-- Gráfico 1: Distribución por Fuentes -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <h3>Distribución de Fuentes de Información</h3>
+            <span>Porcentaje global</span>
+          </div>
+          <div class="chart-body">
+            <canvas id="chartFuentes"></canvas>
+          </div>
+        </div>
+
+        <!-- Gráfico 2: Provincias con Mayor Cobertura Noticiosa -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <h3>Provincias con Mayor CoberturaNoticiosa</h3>
+            <span>Porcentaje de volumen electoral</span>
+          </div>
+          <div class="chart-body">
+            <canvas id="chartProvincias"></canvas>
+          </div>
+        </div>
+
+        <!-- Gráfico 3: Porcentaje de Alertas y Advertencias -->
+        <div class="chart-card full-width">
+          <div class="chart-header">
+            <h3>Proporción de Contenido Verificado vs Advertencias de Desinformación</h3>
+            <span>Monitoreo de publicaciones</span>
+          </div>
+          <div class="chart-body" style="max-height: 280px; display: flex; justify-content: center;">
+            <canvas id="chartAdvertencias"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
 
   <!-- Librería JavaScript de Leaflet.js (OpenStreetMap) -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+  <!-- Librería Chart.js para los gráficos del Dashboard -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <!-- Script principal de la aplicación -->
   <script src="js/app.js"></script>
 
 </body>
 </html>
-

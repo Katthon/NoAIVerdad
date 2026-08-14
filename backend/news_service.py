@@ -1,17 +1,15 @@
 import os
 import requests
 import logging
-from concurrent.futures import ThreadPoolExecutor
+import asyncio
 from typing import List, Dict, Any
 
-# Configuración de logging para monitoreo de peticiones
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-
 class NewsFactCheckService:
     """
-    Servicio encargado de la integración concurrente con:
+    Servicio encargado de la integración concurrente sin datos quemados con:
     1. GNews API (Noticias en tiempo real)
     2. Google Fact Check Tools API (Verificaciones de datos y desinformación)
     """
@@ -23,18 +21,16 @@ class NewsFactCheckService:
         self.gnews_api_key = os.getenv("GNEWS_API_KEY", "").strip()
         self.fact_check_api_key = os.getenv("GOOGLE_FACT_CHECK_API_KEY", "").strip()
 
-    def obtener_informacion_provincia(self, provincia: str) -> Dict[str, Any]:
+    async def obtener_informacion_provincia(self, provincia: str) -> Dict[str, Any]:
         """
-        Ejecuta de manera concurrente la Tarea A (GNews) y Tarea B (Google Fact Check)
-        y consolida la respuesta para el mapa de NoAIVerdad.
+        Ejecuta las consultas a GNews y Google Fact Check de manera asíncrona.
         """
-        # Ejecutar peticiones concurrentes para reducir latencia
-        with ThreadPoolExecutor(max_workers=2) as executor:
-            future_gnews = executor.submit(self.consultar_gnews, provincia)
-            future_factcheck = executor.submit(self.consultar_google_fact_check, provincia)
+        # Ejecutar peticiones concurrentes
+        gnews_task = asyncio.create_task(self.consultar_gnews(provincia))
+        factcheck_task = asyncio.create_task(self.consultar_google_fact_check(provincia))
 
-            noticias_tiempo_real = future_gnews.result()
-            verificaciones_factcheck = future_factcheck.result()
+        # Esperar a que ambas tareas terminen
+        noticias_tiempo_real, verificaciones_factcheck = await asyncio.gather(gnews_task, factcheck_task)
 
         return {
             "provincia": provincia,
@@ -42,14 +38,13 @@ class NewsFactCheckService:
             "verificaciones": verificaciones_factcheck
         }
 
-    def consultar_gnews(self, provincia: str) -> List[Dict[str, Any]]:
-        """
-        TAREA A: Consulta la API de GNews para obtener noticias en tiempo real sobre la provincia.
-        """
+    async def consultar_gnews(self, provincia: str) -> List[Dict[str, Any]]:
+        """TAREA A: Consulta la API de GNews. Devuelve lista vacía si falla."""
         if not self.gnews_api_key:
-            logger.warning("GNEWS_API_KEY no encontrada en las variables de entorno.")
-            return self._fallback_gnews(provincia)
+            logger.error("Error: GNEWS_API_KEY no configurada.")
+            return []
 
+        # Buscamos primero con un término específico
         query = f"elecciones {provincia} Ecuador"
         params = {
             "q": query,
@@ -60,70 +55,37 @@ class NewsFactCheckService:
         }
 
         try:
-            logger.info(f"Consultando GNews API para: '{query}'...")
+            logger.info(f"Consultando GNews para: '{query}'...")
             response = requests.get(self.GNEWS_URL, params=params, timeout=8)
-
+            
             if response.status_code == 200:
-                data = response.json()
-                articles = data.get("articles", [])
-                resultados = []
-
-                for art in articles:
-                    resultados.append({
-                        "titulo": art.get("title", "Sin título"),
-                        "url": art.get("url", "#"),
-                        "fecha": art.get("publishedAt", ""),
-                        "fuente": art.get("source", {}).get("name", "Fuente no especificada")
-                    })
-
-                # Si no hay resultados específicos, hacer una consulta más amplia o retornar fallback sintético
-                if not resultados:
-                    logger.info(f"GNews no devolvió artículos para '{query}'. Probando búsqueda general...")
-                    return self._consultar_gnews_ampliado(provincia)
-
-                return resultados
-            else:
-                logger.error(f"Error de GNews API ({response.status_code}): {response.text}")
-                return self._fallback_gnews(provincia)
-
+                return self._mapear_resultados_gnews(response.json())
+            
+            logger.warning(f"GNews API falló con código {response.status_code}: {response.text}")
+            return []
+            
         except Exception as e:
-            logger.exception("Excepción durante la consulta a GNews API")
-            return self._fallback_gnews(provincia)
+            logger.error(f"Excepción al consultar GNews: {e}")
+            return []
 
-    def _consultar_gnews_ampliado(self, provincia: str) -> List[Dict[str, Any]]:
-        """Búsqueda alternativa en GNews con términos más generales si la búsqueda específica es vacía."""
-        try:
-            params = {
-                "q": f"{provincia} Ecuador noticias",
-                "lang": "es",
-                "max": 5,
-                "apikey": self.gnews_api_key
-            }
-            response = requests.get(self.GNEWS_URL, params=params, timeout=6)
-            if response.status_code == 200:
-                articles = response.json().get("articles", [])
-                res = [
-                    {
-                        "titulo": art.get("title", "Sin título"),
-                        "url": art.get("url", "#"),
-                        "fecha": art.get("publishedAt", ""),
-                        "fuente": art.get("source", {}).get("name", "GNews")
-                    }
-                    for art in articles
-                ]
-                if res:
-                    return res
-        except Exception:
-            pass
-        return self._fallback_gnews(provincia)
+    def _mapear_resultados_gnews(self, data: dict) -> List[Dict[str, Any]]:
+        """Mapea la respuesta JSON cruda de GNews a la estructura deseada."""
+        articles = data.get("articles", [])
+        resultados = []
+        for art in articles:
+            resultados.append({
+                "titulo": art.get("title", "Sin título"),
+                "url": art.get("url", "#"),
+                "fecha": art.get("publishedAt", ""),
+                "fuente": art.get("source", {}).get("name", "Fuente no especificada")
+            })
+        return resultados
 
-    def consultar_google_fact_check(self, provincia: str) -> List[Dict[str, Any]]:
-        """
-        TAREA B: Consulta la API de Google Fact Check Tools para verificar afirmaciones de desinformación.
-        """
+    async def consultar_google_fact_check(self, provincia: str) -> List[Dict[str, Any]]:
+        """TAREA B: Consulta Google Fact Check. Devuelve lista vacía si falla."""
         if not self.fact_check_api_key:
-            logger.warning("GOOGLE_FACT_CHECK_API_KEY no encontrada en las variables de entorno.")
-            return self._fallback_fact_check(provincia)
+            logger.error("Error: GOOGLE_FACT_CHECK_API_KEY no configurada.")
+            return []
 
         query = f"{provincia} elecciones Ecuador"
         params = {
@@ -133,111 +95,53 @@ class NewsFactCheckService:
         }
 
         try:
-            logger.info(f"Consultando Google Fact Check API para: '{query}'...")
+            logger.info(f"Consultando Google Fact Check para: '{query}'...")
             response = requests.get(self.FACT_CHECK_URL, params=params, timeout=8)
-
+            
             if response.status_code == 200:
                 data = response.json()
                 claims = data.get("claims", [])
-                verificaciones = []
+                
+                # Si la búsqueda específica no devuelve nada, intentamos algo general de Ecuador
+                if not claims:
+                    logger.info(f"Fact Check vacía para '{query}'. Probando búsqueda general de Ecuador...")
+                    params["query"] = "Ecuador elecciones"
+                    response_general = requests.get(self.FACT_CHECK_URL, params=params, timeout=8)
+                    if response_general.status_code == 200:
+                         claims = response_general.json().get("claims", [])
+                
+                return self._mapear_resultados_fact_check(claims)
 
-                for claim in claims:
-                    texto_afirmacion = claim.get("text", "Afirmación sin texto")
-                    quien_lo_dijo = claim.get("claimant", "No especificado")
-                    reviews = claim.get("claimReview", [])
-
-                    if reviews:
-                        primera_revision = reviews[0]
-                        url_revision = primera_revision.get("url", "#")
-                        veredicto = primera_revision.get("textualRating", "Sin veredicto")
-                        editor = primera_revision.get("publisher", {}).get("name", "Verificador de Datos")
-                    else:
-                        url_revision = "#"
-                        veredicto = "No verificado"
-                        editor = "Fact Checker"
-
-                    verificaciones.append({
-                        "text": texto_afirmacion,
-                        "claimant": quien_lo_dijo,
-                        "url": url_revision,
-                        "publisher": editor,
-                        "textualRating": veredicto
-                    })
-
-                # Si la consulta específica no tiene datos, probar con término general "Ecuador elecciones"
-                if not verificaciones:
-                    logger.info(f"Fact Check vacía para '{query}'. Intentando consulta general Ecuador...")
-                    return self._consultar_fact_check_general(provincia)
-
-                return verificaciones
-            else:
-                logger.error(f"Error de Google Fact Check API ({response.status_code}): {response.text}")
-                return self._fallback_fact_check(provincia)
+            logger.warning(f"Google Fact Check API falló con código {response.status_code}: {response.text}")
+            return []
 
         except Exception as e:
-            logger.exception("Excepción durante la consulta a Google Fact Check API")
-            return self._fallback_fact_check(provincia)
+            logger.error(f"Excepción al consultar Google Fact Check: {e}")
+            return []
 
-    def _consultar_fact_check_general(self, provincia: str) -> List[Dict[str, Any]]:
-        """Consulta secundaria a Fact Check sobre Ecuador en general si no hay afirmaciones provinciales directas."""
-        try:
-            params = {
-                "query": "Ecuador elecciones",
-                "languageCode": "es",
-                "key": self.fact_check_api_key
-            }
-            response = requests.get(self.FACT_CHECK_URL, params=params, timeout=6)
-            if response.status_code == 200:
-                claims = response.json().get("claims", [])
-                res = []
-                for claim in claims[:5]:
-                    reviews = claim.get("claimReview", [])
-                    rev = reviews[0] if reviews else {}
-                    res.append({
-                        "text": claim.get("text", "Afirmación sobre proceso electoral"),
-                        "claimant": claim.get("claimant", "Redes Sociales / Político"),
-                        "url": rev.get("url", "https://ecuadorchequea.com"),
-                        "publisher": rev.get("publisher", {}).get("name", "Ecuador Chequea"),
-                        "textualRating": rev.get("textualRating", "Falso / Engañoso")
-                    })
-                if res:
-                    return res
-        except Exception:
-            pass
-        return self._fallback_fact_check(provincia)
+    def _mapear_resultados_fact_check(self, claims: list) -> List[Dict[str, Any]]:
+         """Mapea la respuesta JSON cruda de Fact Check a la estructura deseada."""
+         verificaciones = []
+         for claim in claims:
+             texto_afirmacion = claim.get("text", "Afirmación sin texto")
+             quien_lo_dijo = claim.get("claimant", "No especificado")
+             reviews = claim.get("claimReview", [])
 
-    def _fallback_gnews(self, provincia: str) -> List[Dict[str, Any]]:
-        """Datos sintéticos de reserva para tiempo real si la API externa falla o no devuelve artículos."""
-        return [
-            {
-                "titulo": f"Cobertura especial de campaña electoral en la provincia de {provincia}",
-                "url": "https://www.elcomercio.com",
-                "fecha": "2026-08-14T10:30:00Z",
-                "fuente": "El Comercio Ecuador"
-            },
-            {
-                "titulo": f"Monitoreo de observadores comunitarios durante el proceso electoral en {provincia}",
-                "url": "https://www.eluniverso.com",
-                "fecha": "2026-08-14T09:15:00Z",
-                "fuente": "El Universo"
-            }
-        ]
+             if reviews:
+                 primera_revision = reviews[0]
+                 url_revision = primera_revision.get("url", "#")
+                 veredicto = primera_revision.get("textualRating", "Sin veredicto")
+                 editor = primera_revision.get("publisher", {}).get("name", "Verificador de Datos")
+             else:
+                 url_revision = "#"
+                 veredicto = "No verificado"
+                 editor = "Fact Checker"
 
-    def _fallback_fact_check(self, provincia: str) -> List[Dict[str, Any]]:
-        """Datos sintéticos de reserva para verificaciones si la API de Google Fact Check no contiene datos."""
-        return [
-            {
-                "text": f"Supuesto fraude digital en el padrón electoral asignado a la provincia de {provincia}.",
-                "claimant": "Cuentas anónimas en redes sociales",
-                "url": "https://ecuadorchequea.com/verificacion-padron",
-                "publisher": "Ecuador Chequea",
-                "textualRating": "Falso"
-            },
-            {
-                "text": f"Audio viral atribuye falsos acuerdos políticos al candidato en {provincia}.",
-                "claimant": "Campaña de desprestigio en TikTok/WhatsApp",
-                "url": "https://lupaelectoral.ec/factcheck-audio",
-                "publisher": "Lupa Electoral EC",
-                "textualRating": "Engañoso / Manipulado"
-            }
-        ]
+             verificaciones.append({
+                 "text": texto_afirmacion,
+                 "claimant": quien_lo_dijo,
+                 "url": url_revision,
+                 "publisher": editor,
+                 "textualRating": veredicto
+             })
+         return verificaciones

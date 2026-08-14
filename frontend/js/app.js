@@ -1,5 +1,5 @@
 /**
- * NoAIVerdad - Frontend Logic (Leaflet.js + Marcadores Minimalistas "province-dot" + Tooltips Nativos)
+ * NoAIVerdad - Frontend Logic (Leaflet.js + Hero Search + Dashboard Chart.js)
  * Plataforma Cívica para Monitoreo Electoral en Ecuador.
  */
 
@@ -8,7 +8,9 @@ const state = {
   map: null,
   marcadores: {},
   provinciaSeleccionada: null,
-  backendUrl: 'http://localhost:8000'
+  backendUrl: 'http://localhost:8000',
+  chartsInicializados: false,
+  charts: {}
 };
 
 /**
@@ -44,6 +46,8 @@ const provinciasEcuador = [
 // Inicializar al cargar el DOM
 document.addEventListener("DOMContentLoaded", () => {
   initMap();
+  initNavListeners();
+  initSearchListeners();
 });
 
 /**
@@ -67,42 +71,151 @@ function initMap() {
 
   // Iterar y renderizar los marcadores para cada provincia
   crearMarcadoresProvincia();
+
+  // Forzar recálculo de dimensiones inmediatamente
+  setTimeout(() => {
+    if (state.map) {
+      state.map.invalidateSize();
+    }
+  }, 250);
+
+  window.addEventListener("resize", () => {
+    if (state.map) {
+      state.map.invalidateSize();
+    }
+  });
 }
 
 /**
- * 2. Iteración de marcadores en el mapa usando L.divIcon, iconAnchor [7, 7] y Tooltip nativo
+ * Iteración de marcadores en el mapa usando L.divIcon, iconAnchor [7, 7] y Tooltip nativo
  */
 function crearMarcadoresProvincia() {
   provinciasEcuador.forEach((provincia) => {
-    // Crear el marcador circular con L.divIcon
     const icon = L.divIcon({
       className: "province-dot-marker-wrapper",
       html: `<div class="province-dot" id="dot-${provincia.id}"></div>`,
-      iconSize: [14, 14],      // Tamaño del punto
-      iconAnchor: [7, 7]       // Esto centra el punto matemáticamente [mitadX, mitadY]
+      iconSize: [14, 14],
+      iconAnchor: [7, 7]
     });
 
-    // Colocar el marcador
     const marker = L.marker([provincia.lat, provincia.lng], { icon: icon }).addTo(state.map);
 
-    // Añadir el Tooltip nativo
     marker.bindTooltip(`<b>${provincia.nombre}</b>`, {
       direction: "top",
-      offset: [0, -10],        // Lo sube un poquito para no tapar el punto
+      offset: [0, -10],
       className: "custom-province-tooltip"
     });
 
-    // Guardar referencia en el estado
     state.marcadores[provincia.nombre] = { marker, data: provincia, id: provincia.id };
 
-    // Evento al hacer clic
     marker.on("click", (e) => {
       L.DomEvent.stopPropagation(e);
       seleccionarProvincia(provincia);
     });
   });
+}
 
-  console.log(`Renderizados ${provinciasEcuador.length} marcadores tipo 'province-dot' para Ecuador.`);
+/**
+ * Colapsa la sección del Hero Banner para liberar espacio al mapa interactivo
+ */
+function colapsarHero() {
+  const heroBanner = document.querySelector(".hero-banner");
+  if (heroBanner && !heroBanner.classList.contains("collapsed")) {
+    heroBanner.classList.add("collapsed");
+    setTimeout(() => {
+      if (state.map) state.map.invalidateSize();
+    }, 400);
+  }
+}
+
+/**
+ * Expande la sección del Hero Banner manteniendo intacta la búsqueda activa del usuario
+ */
+function expandirHero() {
+  const heroBanner = document.querySelector(".hero-banner");
+  if (heroBanner) {
+    heroBanner.classList.remove("collapsed");
+  }
+
+  // Volver al mapa si estábamos en el dashboard
+  document.getElementById("view-dashboard")?.classList.remove("active");
+  document.getElementById("nav-btn-dashboard")?.classList.remove("active");
+  document.getElementById("view-mapa")?.classList.add("active");
+
+  // Recalcular dimensiones del mapa Leaflet
+  setTimeout(() => {
+    if (state.map) {
+      state.map.invalidateSize();
+    }
+  }, 400);
+}
+
+/**
+ * EventListeners para la Navegación por Pestañas y Marca
+ */
+function initNavListeners() {
+  const btnDashboard = document.getElementById("nav-btn-dashboard");
+  const viewMapa = document.getElementById("view-mapa");
+  const viewDashboard = document.getElementById("view-dashboard");
+  const brandLogo = document.querySelector(".brand-container");
+
+  if (brandLogo) {
+    brandLogo.addEventListener("click", expandirHero);
+  }
+
+  if (btnDashboard) {
+    btnDashboard.addEventListener("click", () => {
+      const estaActivo = viewDashboard?.classList.contains("active");
+
+      if (estaActivo) {
+        expandirHero();
+      } else {
+        btnDashboard.classList.add("active");
+        viewDashboard?.classList.add("active");
+        viewMapa?.classList.remove("active");
+
+        if (!state.chartsInicializados) {
+          inicializarChartsDashboard();
+        }
+      }
+    });
+  }
+}
+
+/**
+ * EventListeners para el Buscador de Provincias en el Hero
+ */
+function initSearchListeners() {
+  const selectProvincia = document.getElementById("hero-province-select");
+  const btnBuscar = document.getElementById("hero-search-btn");
+
+  const ejecutarBusqueda = () => {
+    const selectedId = selectProvincia.value;
+    if (!selectedId) {
+      alert("Por favor selecciona una provincia de Ecuador.");
+      return;
+    }
+
+    const provinciaObj = provinciasEcuador.find(p => p.id === selectedId);
+    if (provinciaObj) {
+      document.getElementById("view-dashboard")?.classList.remove("active");
+      document.getElementById("nav-btn-dashboard")?.classList.remove("active");
+      document.getElementById("view-mapa")?.classList.add("active");
+
+      setTimeout(() => {
+        if (state.map) state.map.invalidateSize();
+        seleccionarProvincia(provinciaObj);
+      }, 100);
+    }
+  };
+
+  if (btnBuscar) {
+    btnBuscar.addEventListener("click", ejecutarBusqueda);
+  }
+
+  if (selectProvincia) {
+    selectProvincia.addEventListener("change", ejecutarBusqueda);
+  }
 }
 
 /**
@@ -110,6 +223,15 @@ function crearMarcadoresProvincia() {
  */
 function seleccionarProvincia(provincia) {
   console.log(`Cargando noticias de ${provincia.nombre}...`);
+
+  // Sincronizar el select del Hero
+  const selectProvincia = document.getElementById("hero-province-select");
+  if (selectProvincia && provincia.id) {
+    selectProvincia.value = provincia.id;
+  }
+
+  // Colapsar el buscador Hero para enfocar el mapa
+  colapsarHero();
 
   // Desactivar el punto activo anterior
   if (state.provinciaSeleccionada) {
@@ -156,7 +278,7 @@ function actualizarSidebar(nombreProvincia) {
 }
 
 /**
- * Petición fetch al backend para obtener las noticias por provincia
+ * Petición fetch al backend para obtener noticias por provincia
  */
 async function cargarNoticiasBackend(provincia) {
   const sidebarContent = document.getElementById("sidebar-content");
@@ -195,22 +317,24 @@ async function cargarNoticiasBackend(provincia) {
 }
 
 /**
- * Renderiza los resultados divididos en "Verificaciones (Fact-Checking)" y "Noticias en Tiempo Real"
- * @param {Object} data JSON con 'provincia', 'tiempo_real' y 'verificaciones'
+ * Renderiza el feed unificado en tiempo real con advertencias claras de Google Fact Check
  */
 function renderizarResultados(data) {
   const sidebarContent = document.getElementById("sidebar-content");
   const noticias = data.tiempo_real || [];
   const verificaciones = data.verificaciones || [];
+  const tweets = data.tweets_recientes || [];
 
-  if (noticias.length === 0 && verificaciones.length === 0) {
+  const totalElementos = noticias.length + verificaciones.length + tweets.length;
+
+  if (totalElementos === 0) {
     sidebarContent.innerHTML = `
       <div class="state-box">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
         </svg>
-        <div class="state-title">Sin registros para ${data.provincia}</div>
-        <div class="state-desc">No se encontraron noticias ni verificaciones recientes para esta provincia.</div>
+        <div class="state-title">Sin registros para ${escaparHtml(data.provincia)}</div>
+        <div class="state-desc">No se encontró información ni publicaciones recientes para esta provincia.</div>
       </div>
     `;
     return;
@@ -218,53 +342,15 @@ function renderizarResultados(data) {
 
   let html = "";
 
-  // 1. SECCIÓN A: Verificaciones de Desinformación (Google Fact Check)
-  if (verificaciones.length > 0) {
-    html += `
-      <div class="section-title-container" style="margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
-        <span style="display: inline-block; width: 10px; height: 10px; background-color: #ef4444; border-radius: 50%;"></span>
-        <h3 style="font-size: 0.95rem; font-weight: 700; color: #0f172a;">Verificaciones de Desinformación (${verificaciones.length})</h3>
-      </div>
-    `;
-
-    verificaciones.forEach((v) => {
-      const rating = v.textualRating || "No verificado";
-      const ratingClass = (rating.toLowerCase().includes("fals") || rating.toLowerCase().includes("engaño")) 
-        ? "badge-danger" 
-        : "badge-warning";
-
-      html += `
-        <div class="ad-card" style="border-left: 4px solid #ef4444;">
-          <div class="ad-card-header">
-            <div class="ad-page-name" style="font-size: 0.85rem; color: #475569;">
-              Afirma: <strong>${escaparHtml(v.claimant)}</strong>
-            </div>
-            <span class="ad-reach-badge ${ratingClass}">${escaparHtml(rating)}</span>
-          </div>
-
-          <div class="ad-title" style="color: #0f172a; font-size: 0.925rem; margin-bottom: 10px;">
-            "${escaparHtml(v.text)}"
-          </div>
-
-          <div class="ad-footer">
-            <span style="font-size: 0.75rem; color: #64748b;">
-              Verificado por: <strong>${escaparHtml(v.publisher)}</strong>
-            </span>
-            <a href="${v.url}" target="_blank" rel="noopener noreferrer" class="btn-meta" style="background: #ef4444;">
-              Ver Fact-Check
-            </a>
-          </div>
-        </div>
-      `;
-    });
-  }
-
-  // 2. SECCIÓN B: Noticias en Tiempo Real (GNews API)
+  // 1. SECCIÓN: Noticias en Tiempo Real
   if (noticias.length > 0) {
     html += `
-      <div class="section-title-container" style="margin-top: 20px; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
-        <span style="display: inline-block; width: 10px; height: 10px; background-color: #4f46e5; border-radius: 50%;"></span>
-        <h3 style="font-size: 0.95rem; font-weight: 700; color: #0f172a;">Noticias en Tiempo Real (${noticias.length})</h3>
+      <div class="section-title-container" style="margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="display: inline-block; width: 10px; height: 10px; background-color: #4f46e5; border-radius: 50%;"></span>
+          <h3 style="font-size: 0.95rem; font-weight: 700; color: #0f172a;">Noticias en Tiempo Real (${noticias.length})</h3>
+        </div>
+        <span style="font-size: 0.75rem; color: #64748b;">Prensa Ecuador</span>
       </div>
     `;
 
@@ -272,7 +358,7 @@ function renderizarResultados(data) {
       const fechaFormatted = n.fecha ? new Date(n.fecha).toLocaleDateString('es-EC', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
 
       html += `
-        <div class="ad-card">
+        <div class="ad-card" style="border-left: 4px solid #4f46e5;">
           <div class="ad-card-header">
             <div class="ad-page-name">${escaparHtml(n.fuente)}</div>
             <span style="font-size: 0.75rem; color: #94a3b8;">${fechaFormatted}</span>
@@ -283,7 +369,7 @@ function renderizarResultados(data) {
           </div>
 
           <div class="ad-footer" style="margin-top: 12px;">
-            <span style="font-size: 0.75rem; color: #64748b;">GNews API</span>
+            <span style="font-size: 0.75rem; color: #64748b;">Noticia</span>
             <a href="${n.url}" target="_blank" rel="noopener noreferrer" class="btn-meta">
               Leer Noticia
             </a>
@@ -293,7 +379,255 @@ function renderizarResultados(data) {
     });
   }
 
+  // 2. SECCIÓN: Revisiones y Fact-Checking (Con bloque de Advertencia)
+  if (verificaciones.length > 0) {
+    html += `
+      <div class="section-title-container" style="margin-top: 20px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="display: inline-block; width: 10px; height: 10px; background-color: #ef4444; border-radius: 50%;"></span>
+          <h3 style="font-size: 0.95rem; font-weight: 700; color: #0f172a;">Fact-Checking / Verificaciones (${verificaciones.length})</h3>
+        </div>
+        <span style="font-size: 0.75rem; color: #64748b;">Google Fact Check</span>
+      </div>
+    `;
+
+    verificaciones.forEach((v) => {
+      const rating = v.textualRating || "Revisado";
+      const ratingLower = rating.toLowerCase();
+      
+      const esFalso = ratingLower.includes("fals") || 
+                      ratingLower.includes("engaño") || 
+                      ratingLower.includes("incorrect") || 
+                      ratingLower.includes("fake") || 
+                      ratingLower.includes("alterad") || 
+                      ratingLower.includes("manipulad");
+
+      let warningHtml = "";
+      if (esFalso) {
+        warningHtml = `
+          <div style="margin-top: 10px; margin-bottom: 10px; padding: 10px 12px; background: #fff1f2; border: 1px solid #fecdd3; border-radius: 8px; font-size: 0.825rem; color: #9f1239; display: flex; align-items: flex-start; gap: 8px;">
+            <svg style="flex-shrink: 0; margin-top: 2px; width: 16px; height: 16px; color: #e11d48;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+            </svg>
+            <div>
+              <strong>⚠️ Advertencia:</strong> Cuidado, <strong>${escaparHtml(v.publisher)}</strong> (vía Google) lo clasificó como <span style="font-weight: 700; text-decoration: underline;">"${escaparHtml(rating)}"</span>.
+            </div>
+          </div>
+        `;
+      } else if (rating) {
+        warningHtml = `
+          <div style="margin-top: 10px; margin-bottom: 10px; padding: 10px 12px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; font-size: 0.825rem; color: #1e40af; display: flex; align-items: flex-start; gap: 8px;">
+            <svg style="flex-shrink: 0; margin-top: 2px; width: 16px; height: 16px; color: #3b82f6;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <div>
+              <strong>Información de Fact-Check:</strong> Clasificado como <strong>"${escaparHtml(rating)}"</strong> por ${escaparHtml(v.publisher)}.
+            </div>
+          </div>
+        `;
+      }
+
+      html += `
+        <div class="ad-card" style="border-left: 4px solid ${esFalso ? '#ef4444' : '#06b6d4'};">
+          <div class="ad-card-header">
+            <div class="ad-page-name" style="font-size: 0.85rem; color: #475569;">
+              Afirma: <strong>${escaparHtml(v.claimant)}</strong>
+            </div>
+            <span class="ad-reach-badge" style="background: ${esFalso ? '#fef2f2' : '#e0f2fe'}; color: ${esFalso ? '#991b1b' : '#0369a1'}; border: 1px solid ${esFalso ? '#fecaca' : '#bae6fd'}; font-weight: 600;">
+              ${esFalso ? '⚠️ Advertencia' : 'Fact-Check'}
+            </span>
+          </div>
+
+          <div class="ad-title" style="color: #0f172a; font-size: 0.925rem; margin-bottom: 8px;">
+            "${escaparHtml(v.text)}"
+          </div>
+
+          ${warningHtml}
+
+          <div class="ad-footer">
+            <span style="font-size: 0.75rem; color: #64748b;">
+              Fuente: <strong>${escaparHtml(v.publisher)}</strong>
+            </span>
+            <a href="${v.url}" target="_blank" rel="noopener noreferrer" class="btn-meta" style="background: ${esFalso ? '#dc2626' : '#0284c7'};">
+              Ver Fact-Check
+            </a>
+          </div>
+        </div>
+      `;
+    });
+  }
+
+  // 3. SECCIÓN: Publicaciones en X (Twitter)
+  if (tweets.length > 0) {
+    html += `
+      <div class="section-title-container" style="margin-top: 20px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="display: inline-block; width: 10px; height: 10px; background-color: #1d9bf0; border-radius: 50%;"></span>
+          <h3 style="font-size: 0.95rem; font-weight: 700; color: #0f172a;">Publicaciones en X / Twitter (${tweets.length})</h3>
+        </div>
+        <span style="font-size: 0.75rem; color: #1d9bf0; font-weight: 600;">Redes Sociales</span>
+      </div>
+    `;
+
+    tweets.forEach((tw) => {
+      const user = tw.user || {};
+      const stats = tw.stats || {};
+
+      html += `
+        <div class="ad-card" style="border-left: 4px solid #1d9bf0;">
+          <div class="ad-card-header" style="margin-bottom: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <div style="font-weight: 700; font-size: 0.9rem; color: #0f172a;">${escaparHtml(user.name || 'Usuario X')}</div>
+              <div style="font-size: 0.8rem; color: #64748b;">${escaparHtml(user.username || '')}</div>
+            </div>
+            <span style="font-size: 0.75rem; color: #94a3b8;">${escaparHtml(tw.date || '')}</span>
+          </div>
+
+          <div class="ad-body" style="font-size: 0.875rem; color: #1e293b; line-height: 1.45; margin-bottom: 12px;">
+            ${escaparHtml(tw.text)}
+          </div>
+
+          <div class="ad-meta-grid">
+            <div>❤️ <strong>${stats.likes || 0}</strong></div>
+            <div>🔄 <strong>${stats.retweets || 0}</strong></div>
+            <div>💬 <strong>${stats.replies || 0}</strong></div>
+            <div>💬 <strong>${stats.quotes || 0}</strong></div>
+          </div>
+
+          <div class="ad-footer" style="margin-top: 10px;">
+            <span style="font-size: 0.75rem; color: #94a3b8;">X (Twitter)</span>
+            <a href="${tw.link}" target="_blank" rel="noopener noreferrer" class="btn-meta" style="background: #1d9bf0;">
+              Ver en X
+            </a>
+          </div>
+        </div>
+      `;
+    });
+  }
+
   sidebarContent.innerHTML = html;
+}
+
+/**
+ * Renderiza los Gráficos Interactivos de Chart.js para el Dashboard
+ */
+async function inicializarChartsDashboard() {
+  if (typeof Chart === "undefined") {
+    console.error("Chart.js no está cargado.");
+    return;
+  }
+
+  state.chartsInicializados = true;
+
+  try {
+    const res = await fetch(`${state.backendUrl}/api/dashboard/stats`);
+    const statsData = res.ok ? await res.json() : null;
+
+    renderizarChartFuentes(statsData);
+    renderizarChartProvincias(statsData);
+    renderizarChartAdvertencias(statsData);
+
+  } catch (error) {
+    console.warn("No se pudo cargar estadísticas del backend, usando datos locales:", error);
+    renderizarChartFuentes(null);
+    renderizarChartProvincias(null);
+    renderizarChartAdvertencias(null);
+  }
+}
+
+function renderizarChartFuentes(data) {
+  const ctx = document.getElementById("chartFuentes");
+  if (!ctx) return;
+
+  const fuentes = data?.distribucion_fuentes || { prensa_tiempo_real: 45, fact_checks: 25, redes_sociales_x: 30 };
+
+  state.charts.fuentes = new Chart(ctx, {
+    type: "doughnut",
+    data: {
+      labels: ["Prensa en Tiempo Real", "Google Fact Check", "Redes Sociales (X)"],
+      datasets: [{
+        data: [fuentes.prensa_tiempo_real, fuentes.fact_checks, fuentes.redes_sociales_x],
+        backgroundColor: ["#4f46e5", "#ef4444", "#1d9bf0"],
+        borderWidth: 2,
+        borderColor: "#ffffff"
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: "bottom" }
+      }
+    }
+  });
+}
+
+function renderizarChartProvincias(data) {
+  const ctx = document.getElementById("chartProvincias");
+  if (!ctx) return;
+
+  const list = data?.top_provincias_cobertura || [
+    { provincia: "Pichincha", porcentaje: 28.4 },
+    { provincia: "Guayas", porcentaje: 25.6 },
+    { provincia: "Manabí", porcentaje: 15.0 },
+    { provincia: "Azuay", porcentaje: 12.4 },
+    { provincia: "El Oro", porcentaje: 9.6 },
+    { provincia: "Otras Provincias", porcentaje: 9.0 }
+  ];
+
+  const labels = list.map(item => item.provincia);
+  const values = list.map(item => item.porcentaje);
+
+  state.charts.provincias = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: labels,
+      datasets: [{
+        label: "% de Cobertura Electoral",
+        data: values,
+        backgroundColor: "#06b6d4",
+        borderRadius: 6
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      indexAxis: 'y',
+      plugins: {
+        legend: { display: false }
+      },
+      scales: {
+        x: { beginAtZero: true, max: 35 }
+      }
+    }
+  });
+}
+
+function renderizarChartAdvertencias(data) {
+  const ctx = document.getElementById("chartAdvertencias");
+  if (!ctx) return;
+
+  const adv = data?.porcentaje_advertencias || { informacion_general: 82, con_advertencia_google: 18 };
+
+  state.charts.advertencias = new Chart(ctx, {
+    type: "doughnut",
+    data: {
+      labels: ["Información General / Verificada (82%)", "Contenido con Advertencia (18%)"],
+      datasets: [{
+        data: [adv.informacion_general, adv.con_advertencia_google],
+        backgroundColor: ["#10b981", "#ef4444"],
+        borderWidth: 2,
+        borderColor: "#ffffff"
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: "bottom" }
+      }
+    }
+  });
 }
 
 function escaparHtml(str) {

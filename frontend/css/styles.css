@@ -20,7 +20,7 @@
   --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
   --radius-lg: 12px;
   --radius-md: 8px;
-  --sidebar-width: 420px;
+  --sidebar-width: 480px;        /* Ampliado para mayor legibilidad del contenido */
 }
 
 * {
@@ -49,13 +49,14 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 0 24px;
-  z-index: 20;
+  z-index: 30;
 }
 
 .brand-container {
   display: flex;
   align-items: center;
   gap: 12px;
+  cursor: pointer;
 }
 
 .brand-logo {
@@ -91,36 +92,187 @@ body {
   border-radius: 20px;
 }
 
-/* --- Layout Principal --- */
-.app-container {
+/* Navegación Principal */
+.main-nav {
   display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nav-tab {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #94a3b8;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.nav-tab:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+.nav-tab.active {
+  background: var(--primary-color);
+  color: #ffffff;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 12px rgba(79, 70, 229, 0.4);
+}
+
+/* Control de Vistas Separadas e Independientes */
+.view-section {
+  display: none;
   flex: 1;
-  position: relative;
+}
+
+#view-mapa.view-section.active {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 64px);
   overflow: hidden;
 }
 
-/* Map Canvas */
+#view-dashboard.view-section.active {
+  display: block;
+  height: calc(100vh - 64px);
+  overflow-y: auto;
+  background: var(--bg-dark);
+}
+
+/* --- Hero Banner Llamativo con Colapso Suave --- */
+.hero-banner {
+  background: linear-gradient(135deg, #1e1b4b 0%, #0f172a 100%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 16px 28px;
+  color: #ffffff;
+  transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), 
+              padding 0.4s cubic-bezier(0.4, 0, 0.2, 1), 
+              opacity 0.3s ease;
+  max-height: 250px;
+  opacity: 1;
+  overflow: hidden;
+}
+
+.hero-banner.collapsed {
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  opacity: 0;
+  border-bottom: none;
+}
+
+.hero-content {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.hero-badge {
+  display: inline-block;
+  background: rgba(79, 70, 229, 0.25);
+  color: #818cf8;
+  border: 1px solid rgba(129, 140, 248, 0.3);
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.hero-title {
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  margin-bottom: 4px;
+  background: linear-gradient(90deg, #ffffff, #cbd5e1);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.hero-description {
+  font-size: 0.85rem;
+  color: #94a3b8;
+  max-width: 800px;
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
+
+/* Buscador de Provincias */
+.search-box-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 650px;
+}
+
+.province-select {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #cbd5e1;
+  color: #0f172a;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-weight: 600;
+  outline: none;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.btn-search-hero {
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+  color: #ffffff;
+  border: none;
+  padding: 8px 18px;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.4);
+}
+
+.btn-search-hero:hover {
+  transform: translateY(-1px);
+  background: var(--primary-hover);
+  box-shadow: 0 6px 20px rgba(79, 70, 229, 0.6);
+}
+
+/* --- Layout Principal Mapa + Sidebar --- */
+.app-container {
+  display: flex;
+  flex: 1;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
 #map {
   flex: 1;
   height: 100%;
   width: 100%;
   z-index: 1;
+  background: #0f172a;
 }
 
-/* Sidebar */
 .sidebar {
   width: var(--sidebar-width);
+  height: 100%;
   background: #f8fafc;
   border-left: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
   z-index: 10;
   box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15);
-  transition: transform 0.3s ease;
 }
 
 .sidebar-header {
-  padding: 20px;
+  padding: 16px 20px;
   background: #ffffff;
   border-bottom: 1px solid var(--border-color);
 }
@@ -129,11 +281,11 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .sidebar-title {
-  font-size: 1.15rem;
+  font-size: 1.1rem;
   font-weight: 700;
   color: var(--bg-dark);
 }
@@ -141,25 +293,37 @@ body {
 .province-badge {
   background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
   color: #ffffff;
-  padding: 4px 12px;
+  padding: 3px 10px;
   border-radius: 20px;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   font-weight: 600;
 }
 
 .sidebar-subtitle {
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   color: var(--text-muted);
 }
 
-/* Contenido de la Lista */
 .sidebar-content {
   flex: 1;
   overflow-y: auto;
-  padding: 16px;
+  padding: 20px;
 }
 
-/* Estados Varios (Cargando, Inicial, Vacío) */
+.sidebar-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar-content::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.sidebar-content::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Estados Varios */
 .state-box {
   display: flex;
   flex-direction: column;
@@ -189,10 +353,10 @@ body {
   line-height: 1.5;
 }
 
-/* Spinner de Carga */
+/* Spinner */
 .spinner {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border: 4px solid rgba(79, 70, 229, 0.1);
   border-top-color: var(--primary-color);
   border-radius: 50%;
@@ -205,13 +369,13 @@ body {
   100% { transform: rotate(360deg); }
 }
 
-/* --- Tarjeta de Anuncio Político --- */
+/* Tarjeta de Contenido */
 .ad-card {
   background: var(--bg-card);
   border-radius: var(--radius-lg);
   border: 1px solid var(--border-color);
-  padding: 16px;
-  margin-bottom: 16px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
   box-shadow: var(--shadow-sm);
   transition: all 0.2s ease;
 }
@@ -219,19 +383,18 @@ body {
 .ad-card:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-md);
-  border-color: #cbd5e1;
 }
 
 .ad-card-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .ad-page-name {
   font-weight: 700;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   color: var(--bg-dark);
 }
 
@@ -247,37 +410,20 @@ body {
 
 .ad-title {
   font-weight: 600;
-  font-size: 0.9rem;
-  color: var(--primary-hover);
+  font-size: 0.875rem;
+  color: #1e293b;
   margin-bottom: 8px;
-}
-
-.ad-body {
-  font-size: 0.85rem;
-  color: #334155;
-  line-height: 1.5;
-  margin-bottom: 12px;
-  display: -webkit-box;
-  -webkit-line-clamp: 4;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
 }
 
 .ad-meta-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
   background: #f8fafc;
-  padding: 10px;
+  padding: 8px;
   border-radius: var(--radius-md);
   font-size: 0.75rem;
   color: var(--text-muted);
-  margin-bottom: 12px;
-}
-
-.ad-meta-item strong {
-  display: block;
-  color: var(--text-main);
 }
 
 .ad-footer {
@@ -290,7 +436,7 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: #1877f2;
+  background: var(--primary-color);
   color: #ffffff;
   font-size: 0.75rem;
   font-weight: 600;
@@ -301,65 +447,32 @@ body {
 }
 
 .btn-meta:hover {
-  background: #166fe5;
+  filter: brightness(0.9);
 }
 
-/* Indicador de Datos Sintéticos */
-.demo-banner {
-  background: #fffbeb;
-  border: 1px solid #fde68a;
-  color: #b45309;
-  padding: 10px 14px;
-  border-radius: var(--radius-md);
-  font-size: 0.8rem;
-  margin-bottom: 16px;
-  line-height: 1.4;
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-  .app-container {
-    flex-direction: column;
-  }
-  .sidebar {
-    width: 100%;
-    height: 50vh;
-  }
-  #map {
-    height: 50vh;
-  }
-}
-
-/* ==========================================================================
-   REQUISITO 1: Marcadores HTML Minimalistas (province-dot)
-   ========================================================================== */
+/* Marcadores Minimalistas Leaflet */
 .province-dot-marker-wrapper {
   background: transparent !important;
   border: none !important;
 }
 
-/* Círculo perfecto y uniforme (14px x 14px) */
 .province-dot {
   width: 14px;
   height: 14px;
-  background-color: #4f46e5;      /* Índigo vibrante */
-  border: 2px solid #ffffff;        /* Borde blanco nítido */
-  border-radius: 50%;               /* Círculo perfecto */
+  background-color: #4f46e5;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.4), 0 0 0 1px rgba(79, 70, 229, 0.2);
   cursor: pointer;
-  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), 
-              background-color 0.25s ease, 
-              box-shadow 0.25s ease;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.25s ease, box-shadow 0.25s ease;
 }
 
-/* Estado Hover al pasar el ratón */
 .province-dot-marker-wrapper:hover .province-dot {
   transform: scale(1.45);
-  background-color: #06b6d4;      /* Cían brillante */
+  background-color: #06b6d4;
   box-shadow: 0 4px 14px rgba(6, 182, 212, 0.6), 0 0 0 2px rgba(255, 255, 255, 0.9);
 }
 
-/* Estado Seleccionado / Activo */
 .province-dot.active {
   transform: scale(1.55);
   background-color: #38bdf8;
@@ -367,9 +480,6 @@ body {
   box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.4), 0 4px 18px rgba(56, 189, 248, 0.8);
 }
 
-/* ==========================================================================
-   REQUISITO 3: Tooltips Nativos de Leaflet (custom-province-tooltip)
-   ========================================================================== */
 .custom-province-tooltip {
   background: rgba(15, 23, 42, 0.92) !important;
   backdrop-filter: blur(8px);
@@ -382,27 +492,149 @@ body {
   padding: 4px 10px !important;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25) !important;
   white-space: nowrap !important;
-  letter-spacing: -0.2px;
 }
 
-/* Ocultar la flecha por defecto o estilizarla sutilmente */
 .custom-province-tooltip::before {
   border-top-color: rgba(15, 23, 42, 0.92) !important;
 }
 
-/* Badges para el veredicto de Fact-Checking */
-.badge-danger {
-  background: #fef2f2 !important;
-  color: #991b1b !important;
-  border: 1px solid #fecaca !important;
+/* --- DASHBOARD STYLES --- */
+.dashboard-wrapper {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 24px;
+  width: 100%;
 }
 
-.badge-warning {
-  background: #fffbeb !important;
-  color: #b45309 !important;
-  border: 1px solid #fde68a !important;
+.dashboard-header {
+  margin-bottom: 24px;
+  color: #ffffff;
 }
 
+.dashboard-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  margin-bottom: 4px;
+}
 
+.dashboard-subtitle {
+  font-size: 0.9rem;
+  color: #94a3b8;
+}
 
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
 
+.metric-card {
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: var(--shadow-md);
+}
+
+.metric-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+}
+
+.metric-value {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.metric-label {
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
+/* Rejilla de Gráficos */
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+.chart-card {
+  background: #ffffff;
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  box-shadow: var(--shadow-md);
+
+}
+
+.chart-card.full-width {
+  grid-column: span 2;
+}
+
+.chart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 10px;
+}
+
+.chart-header h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.chart-header span {
+  font-size: 0.775rem;
+  color: #64748b;
+}
+
+.chart-body {
+  position: relative;
+  height: 260px;
+  width: 100%;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .charts-grid {
+    grid-template-columns: 1fr;
+  }
+  .chart-card.full-width {
+    grid-column: span 1;
+  }
+}
+
+@media (max-width: 768px) {
+  .header {
+    flex-direction: column;
+    height: auto;
+    padding: 12px 16px;
+    gap: 12px;
+  }
+  .app-container {
+    flex-direction: column;
+    height: auto;
+  }
+  .sidebar {
+    width: 100%;
+    height: auto;
+  }
+  #map {
+    height: 400px;
+  }
+  .search-box-container {
+    flex-direction: column;
+  }
+}
