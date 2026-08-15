@@ -123,6 +123,48 @@ body {
   box-shadow: 0 0 12px rgba(79, 70, 229, 0.4);
 }
 
+.btn-change-province {
+  background: linear-gradient(135deg, #4f46e5, #3b82f6);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 2px 10px rgba(79, 70, 229, 0.3);
+  transition: all 0.2s ease;
+}
+
+.btn-change-province:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 15px rgba(79, 70, 229, 0.5);
+  background: linear-gradient(135deg, #4338ca, #2563eb);
+}
+
+.btn-sidebar-change {
+  background: #e0e7ff;
+  color: #3730a3;
+  border: 1px solid #c7d2fe;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s ease;
+}
+
+.btn-sidebar-change:hover {
+  background: #c7d2fe;
+  color: #1e1b4b;
+}
+
 /* Control de Vistas Separadas e Independientes */
 .view-section {
   display: none;

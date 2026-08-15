@@ -73,14 +73,6 @@ document.addEventListener("DOMContentLoaded", () => {
   initNavListeners();
   initSearchListeners();
   initFilterListeners();
-
-  // Carga automática inicial de Pichincha al abrir la aplicación web
-  setTimeout(() => {
-    const provinciaInicial = provinciasEcuador.find(p => p.id === 'pichincha');
-    if (provinciaInicial) {
-      seleccionarProvincia(provinciaInicial);
-    }
-  }, 300);
 });
 
 /**
@@ -188,12 +180,33 @@ function expandirHero() {
  */
 function initNavListeners() {
   const btnDashboard = document.getElementById("nav-btn-dashboard");
+  const btnReopenHero = document.getElementById("btn-reopen-hero");
+  const btnSidebarChange = document.getElementById("btn-sidebar-change");
   const viewMapa = document.getElementById("view-mapa");
   const viewDashboard = document.getElementById("view-dashboard");
   const brandLogo = document.querySelector(".brand-container");
 
+  const abrirHeroYSolicitarProvincia = () => {
+    expandirHero();
+    setTimeout(() => {
+      const selectProvincia = document.getElementById("hero-province-select");
+      if (selectProvincia) {
+        selectProvincia.focus();
+        selectProvincia.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }, 150);
+  };
+
   if (brandLogo) {
-    brandLogo.addEventListener("click", expandirHero);
+    brandLogo.addEventListener("click", abrirHeroYSolicitarProvincia);
+  }
+
+  if (btnReopenHero) {
+    btnReopenHero.addEventListener("click", abrirHeroYSolicitarProvincia);
+  }
+
+  if (btnSidebarChange) {
+    btnSidebarChange.addEventListener("click", abrirHeroYSolicitarProvincia);
   }
 
   if (btnDashboard) {

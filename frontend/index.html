@@ -31,6 +31,9 @@
 
     <!-- Navegación Principal -->
     <nav class="main-nav">
+      <button id="btn-reopen-hero" class="btn-change-province">
+        🔍 Seleccionar Provincia
+      </button>
       <button id="nav-btn-dashboard" class="nav-tab">
         📊 Dashboard de Tendencias
       </button>
@@ -96,7 +99,10 @@
         <div class="sidebar-header">
           <div class="sidebar-title-container">
             <h2 id="sidebar-title" class="sidebar-title">Noticias en: Selecciona una provincia</h2>
-            <span id="selected-province-badge" class="province-badge">Ecuador</span>
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span id="selected-province-badge" class="province-badge">Ecuador</span>
+              <button id="btn-sidebar-change" class="btn-sidebar-change">🗺️ Cambiar Provincia</button>
+            </div>
           </div>
           <p class="sidebar-subtitle">Haz clic sobre cualquier marcador en el mapa para cargar las noticias y publicaciones en tiempo real.</p>
           
