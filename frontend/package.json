@@ -1,13 +1,13 @@
 {
   "name": "noaiverdad-frontend",
   "version": "4.0.0",
-  "description": "Plataforma Cívica para Monitoreo Electoral en Ecuador - Interfaz Web Interactiva con Leaflet.js y Dashboard Chart.js",
+  "description": "Plataforma Cívica para Monitoreo Electoral en Ecuador - Interfaz Web Interactiva",
   "main": "js/app.js",
   "scripts": {
     "dev": "npx -y serve . -p 3000",
-    "start": "npx -y serve . -p 3000",
-    "build": "echo 'Frontend build completado exitosamente para Railway / Vercel'",
-    "preview": "npx -y serve . -p 3000"
+    "start": "npx -y serve . -p $PORT",
+    "build": "echo 'Frontend build completado exitosamente'",
+    "preview": "npx -y serve . -p $PORT"
   },
   "keywords": [
     "ecuador",
@@ -21,9 +21,7 @@
   "license": "MIT",
   "dependencies": {
     "chart.js": "^4.4.1",
-    "leaflet": "^1.9.4"
-  },
-  "devDependencies": {
+    "leaflet": "^1.9.4",
     "serve": "^14.2.1"
   }
 }
