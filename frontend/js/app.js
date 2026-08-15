@@ -204,7 +204,6 @@ function alternarHero() {
 function initNavListeners() {
   const btnDashboard = document.getElementById("nav-btn-dashboard");
   const btnReopenHero = document.getElementById("btn-reopen-hero");
-  const btnSidebarChange = document.getElementById("btn-sidebar-change");
   const viewMapa = document.getElementById("view-mapa");
   const viewDashboard = document.getElementById("view-dashboard");
   const brandLogo = document.querySelector(".brand-container");
@@ -215,10 +214,6 @@ function initNavListeners() {
 
   if (btnReopenHero) {
     btnReopenHero.addEventListener("click", alternarHero);
-  }
-
-  if (btnSidebarChange) {
-    btnSidebarChange.addEventListener("click", alternarHero);
   }
 
   if (btnDashboard) {
