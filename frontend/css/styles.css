@@ -25,10 +25,13 @@
 }
 
 [data-theme="dark"] .sidebar-title,
+[data-theme="dark"] .sidebar-subtitle,
+[data-theme="dark"] .filter-label,
 [data-theme="dark"] .section-title-container h3,
 [data-theme="dark"] .item-title,
 [data-theme="dark"] .item-page-name,
-[data-theme="dark"] .state-title {
+[data-theme="dark"] .state-title,
+[data-theme="dark"] .state-desc {
   color: #ffffff !important;
 }
 
