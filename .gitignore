@@ -1,0 +1,33 @@
+# =========================================================================
+# SEGURIDAD Y PRIVACIDAD: PROTECCIÓN DE CLAVES API Y CREDENCIALES
+# =========================================================================
+# IMPORTANTE: No modificar ni eliminar esta sección. Evita que las llaves API
+# privadas (Google Fact Check, GNews, Meta, Bluesky, etc.) se guarden o suban a Git.
+
+.env
+.env.*
+!.env.example
+*.env
+backend/.env
+backend/.env.*
+
+# =========================================================================
+# PYTHON Y ENTORNO VIRTUAL
+# =========================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+ENV/
+backend/venv/
+backend/__pycache__/
+
+# =========================================================================
+# ARCHIVOS DE CONFIGURACIÓN DEL SISTEMA Y LOGS
+# =========================================================================
+*.log
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

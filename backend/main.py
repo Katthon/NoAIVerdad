@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 # Cargar variables de entorno si existen (.env)
 load_dotenv()
 
-from unified_service import UnifiedFeedService
+from meta_service import UnifiedFeedService
 
 # Inicializar aplicación FastAPI
 app = FastAPI(

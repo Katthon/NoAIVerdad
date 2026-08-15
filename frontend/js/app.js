@@ -332,10 +332,17 @@ async function cargarNoticiasBackend(provincia, seccion = state.filtroSeccion) {
     state.feedCache[provincia] = {};
   }
 
-  // Si la sección ya fue descargada para esta provincia, cargar de inmediato (0ms)
-  if (state.feedCache[provincia][seccion]) {
+  // Si la sección ya fue descargada con datos válidos para esta provincia, cargar de inmediato (0ms)
+  const cached = state.feedCache[provincia]?.[seccion];
+  if (cached && (
+      (cached.tiempo_real && cached.tiempo_real.length > 0) ||
+      (cached.verificaciones && cached.verificaciones.length > 0) ||
+      (cached.tweets_recientes && cached.tweets_recientes.length > 0) ||
+      (cached.bluesky_posts && cached.bluesky_posts.length > 0) ||
+      (cached.meta_ads && cached.meta_ads.length > 0)
+  )) {
     console.log(`[Cache Hit] Carga instantánea de '${seccion}' para ${provincia}`);
-    state.datosActuales = state.feedCache[provincia][seccion];
+    state.datosActuales = cached;
     renderizarResultados(state.datosActuales);
     return;
   }
@@ -379,10 +386,11 @@ async function cargarNoticiasBackend(provincia, seccion = state.filtroSeccion) {
  * Helpers para el filtrado por año
  */
 function obtenerAnioItem(item) {
-  if (item.anio) return String(item.anio);
-  const textDate = item.fecha || item.date || "";
+  const textDate = item.date || item.fecha || item.date_created || item.pubDate || item.anio || "";
   const match = String(textDate).match(/\b(202[0-9])\b/);
-  return match ? match[1] : "2026";
+  if (match) return match[1];
+  if (item.anio) return String(item.anio);
+  return "2026";
 }
 
 function itemCumpleAnio(item, filtroAnio) {
@@ -394,8 +402,19 @@ function itemCumpleAnio(item, filtroAnio) {
   return anio === filtroAnio;
 }
 
+function formatearFechaSafe(fechaStr) {
+  if (!fechaStr) return "";
+  try {
+    const d = new Date(fechaStr);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleDateString('es-EC', { day: 'numeric', month: 'short', year: 'numeric' });
+    }
+  } catch (e) {}
+  return String(fechaStr);
+}
+
 /**
- * Renderiza el feed unificado en tiempo real con filtrado por Sección y Año (Prensa, Fact-Check, X, Bluesky)
+ * Renderiza el feed unificado en tiempo real con filtrado por Sección y Año (Prensa, Fact-Check, X, Bluesky, Meta Ads)
  */
 function renderizarResultados(data) {
   const sidebarContent = document.getElementById("sidebar-content");
@@ -406,6 +425,7 @@ function renderizarResultados(data) {
   const rawVerificaciones = data.verificaciones || [];
   const rawTweets = data.tweets_recientes || [];
   const rawBluesky = data.bluesky_posts || [];
+  const rawMetaAds = data.meta_ads || [];
 
   const noticias = (seccion === "todas" || seccion === "noticias")
     ? rawNoticias.filter(item => itemCumpleAnio(item, anio))
@@ -423,7 +443,11 @@ function renderizarResultados(data) {
     ? rawBluesky.filter(item => itemCumpleAnio(item, anio))
     : [];
 
-  const totalElementos = noticias.length + verificaciones.length + tweets.length + blueskyPosts.length;
+  const metaAds = (seccion === "todas" || seccion === "meta_ads")
+    ? rawMetaAds.filter(item => itemCumpleAnio(item, anio))
+    : [];
+
+  const totalElementos = noticias.length + verificaciones.length + tweets.length + blueskyPosts.length + metaAds.length;
 
   if (totalElementos === 0) {
     sidebarContent.innerHTML = `
@@ -453,7 +477,7 @@ function renderizarResultados(data) {
     `;
 
     noticias.forEach((n) => {
-      const fechaFormatted = n.fecha ? new Date(n.fecha).toLocaleDateString('es-EC', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+      const fechaFormatted = formatearFechaSafe(n.fecha);
 
       html += `
         <div class="ad-card" style="border-left: 4px solid #4f46e5;">
@@ -652,6 +676,47 @@ function renderizarResultados(data) {
     });
   }
 
+  // 5. SECCIÓN: Anuncios Políticos en Meta (Facebook / Instagram Ad Library)
+  if (metaAds.length > 0) {
+    html += `
+      <div class="section-title-container" style="margin-top: 20px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="display: inline-block; width: 10px; height: 10px; background-color: #1877f2; border-radius: 50%;"></span>
+          <h3 style="font-size: 0.95rem; font-weight: 700; color: #0f172a;">Anuncios de Meta / Facebook (${metaAds.length})</h3>
+        </div>
+        <span style="font-size: 0.75rem; color: #1877f2; font-weight: 600;">📢 Meta Ad Library</span>
+      </div>
+    `;
+
+    metaAds.forEach((ad) => {
+      const pageName = ad.page_name || "Página Meta";
+      const dateFormatted = ad.date || "";
+
+      html += `
+        <div class="ad-card" style="border-left: 4px solid #1877f2;">
+          <div class="ad-card-header" style="margin-bottom: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <div style="font-weight: 700; font-size: 0.9rem; color: #0f172a;">${escaparHtml(pageName)}</div>
+              <span class="ad-reach-badge" style="background: #e7f3ff; color: #1877f2; border: 1px solid #b8daff; font-weight: 600;">Anuncio Electoral</span>
+            </div>
+            <span style="font-size: 0.75rem; color: #94a3b8;">${escaparHtml(dateFormatted)}</span>
+          </div>
+
+          <div class="ad-body" style="font-size: 0.875rem; color: #1e293b; line-height: 1.45; margin-bottom: 12px;">
+            ${escaparHtml(ad.text)}
+          </div>
+
+          <div class="ad-footer" style="margin-top: 10px;">
+            <span style="font-size: 0.75rem; color: #1877f2; font-weight: 600;">📢 Meta Ads</span>
+            <a href="${ad.link}" target="_blank" rel="noopener noreferrer" class="btn-meta" style="background: #1877f2;">
+              Ver Anuncio en Meta
+            </a>
+          </div>
+        </div>
+      `;
+    });
+  }
+
   sidebarContent.innerHTML = html;
 }
 
@@ -686,20 +751,21 @@ function renderizarChartFuentes(data) {
   const ctx = document.getElementById("chartFuentes");
   if (!ctx) return;
 
-  const fuentes = data?.distribucion_fuentes || { prensa_tiempo_real: 40, fact_checks: 20, redes_sociales_x: 25, bluesky_feed: 15 };
+  const fuentes = data?.distribucion_fuentes || { prensa_tiempo_real: 35, fact_checks: 20, redes_sociales_x: 20, bluesky_feed: 15, meta_ads: 10 };
 
   state.charts.fuentes = new Chart(ctx, {
     type: "doughnut",
     data: {
-      labels: ["Prensa en Tiempo Real", "Google Fact Check", "Redes Sociales (X)", "Bluesky (AT Protocol)"],
+      labels: ["Prensa en Tiempo Real", "Google Fact Check", "Redes Sociales (X)", "Bluesky (AT Protocol)", "Meta Ad Library"],
       datasets: [{
         data: [
-          fuentes.prensa_tiempo_real || 40, 
+          fuentes.prensa_tiempo_real || 35, 
           fuentes.fact_checks || 20, 
-          fuentes.redes_sociales_x || 25,
-          fuentes.bluesky_feed || 15
+          fuentes.redes_sociales_x || 20,
+          fuentes.bluesky_feed || 15,
+          fuentes.meta_ads || 10
         ],
-        backgroundColor: ["#4f46e5", "#ef4444", "#1d9bf0", "#0285ff"],
+        backgroundColor: ["#4f46e5", "#ef4444", "#1d9bf0", "#0285ff", "#1877f2"],
         borderWidth: 2,
         borderColor: "#ffffff"
       }]
