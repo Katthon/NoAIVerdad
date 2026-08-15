@@ -109,3 +109,6 @@ El código en `frontend/js/app.js` lo consume de forma asíncrona mediante la ru
    - La provincia cambia a color de selección activada.
    - El título del panel lateral (Sidebar) se actualiza dinámicamente a `"Noticias en: [Nombre de la Provincia]"`.
    - Se realiza una consulta `fetch` al backend FastAPI (`GET /api/noticias?provincia=...`) y se renderizan las tarjetas de noticias/anuncios.
+
+# Link del host
+https://noaiverdad.up.railway.app
