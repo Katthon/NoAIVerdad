@@ -1065,7 +1065,7 @@ function renderizarPildorasTendencia(keywords) {
   keywords.forEach(kw => {
     html += `
       <button class="kw-pill" data-word="${escaparHtml(kw.word)}">
-        🔥 #${escaparHtml(kw.word)} (${kw.count})
+        🔥 #${escaparHtml(kw.word)}
       </button>
     `;
   });
