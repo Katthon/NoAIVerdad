@@ -9,7 +9,7 @@ const obtenerBackendUrl = () => {
     const hostname = window.location.hostname;
     const isLocal = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '';
 
-    // Si estamos ejecutando en la computadora local (localhost)
+    // Si estamos ejecutando en la computadora local (localhost o abriendo el HTML directo)
     if (isLocal) {
       console.log("[Entorno Local Detectado] Conectando a FastAPI local en http://localhost:8000");
       return 'http://localhost:8000';
@@ -19,11 +19,6 @@ const obtenerBackendUrl = () => {
     if (window.VITE_API_URL) return window.VITE_API_URL;
     if (window.API_URL) return window.API_URL;
   }
-  try {
-    if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL) {
-      return import.meta.env.VITE_API_URL;
-    }
-  } catch (e) {}
 
   return 'https://noaiverdad-production.up.railway.app';
 };
