@@ -803,6 +803,8 @@ async function inicializarChartsDashboard() {
 
   const dashSelect = document.getElementById("dashboard-province-select");
   const provInicial = dashSelect ? dashSelect.value : "todas";
+
+  inicializarBuscadorPalabrasClave();
   await cargarEstadisticasDashboard(provInicial);
 }
 
@@ -1010,4 +1012,122 @@ function escaparHtml(str) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
+}
+
+/**
+ * Inicializa el Buscador de Palabras Clave y Sugerencias Frecuentes en el Dashboard
+ */
+async function inicializarBuscadorPalabrasClave() {
+  const inputKW = document.getElementById("dashboard-keyword-input");
+  const btnSearchKW = document.getElementById("btn-search-keyword");
+  const pillsList = document.getElementById("keyword-pills-list");
+
+  if (!pillsList) return;
+
+  try {
+    const res = await fetch(`${state.backendUrl}/api/dashboard/keywords`);
+    if (res.ok) {
+      const data = await res.json();
+      renderizarPildorasTendencia(data.trending_keywords);
+    }
+  } catch (err) {
+    console.warn("Error cargando palabras clave tendencia:", err);
+    renderizarPildorasTendencia([
+      { word: "CNE", count: 142 },
+      { word: "Noboa", count: 128 },
+      { word: "Luisa", count: 115 },
+      { word: "Seguridad", count: 98 },
+      { word: "Encuestas", count: 84 },
+      { word: "Voto2027", count: 76 }
+    ]);
+  }
+
+  if (btnSearchKW && inputKW) {
+    btnSearchKW.addEventListener("click", () => {
+      const palabra = inputKW.value.trim();
+      if (palabra) consultarAnalisisPalabraClave(palabra);
+    });
+
+    inputKW.addEventListener("keyup", (e) => {
+      if (e.key === "Enter") {
+        const palabra = inputKW.value.trim();
+        if (palabra) consultarAnalisisPalabraClave(palabra);
+      }
+    });
+  }
+}
+
+function renderizarPildorasTendencia(keywords) {
+  const pillsList = document.getElementById("keyword-pills-list");
+  if (!pillsList) return;
+
+  let html = "";
+  keywords.forEach(kw => {
+    html += `
+      <button class="kw-pill" data-word="${escaparHtml(kw.word)}">
+        🔥 #${escaparHtml(kw.word)} (${kw.count})
+      </button>
+    `;
+  });
+  pillsList.innerHTML = html;
+
+  pillsList.querySelectorAll(".kw-pill").forEach(pill => {
+    pill.addEventListener("click", () => {
+      const word = pill.getAttribute("data-word");
+      const inputKW = document.getElementById("dashboard-keyword-input");
+      if (inputKW) inputKW.value = word;
+      
+      pillsList.querySelectorAll(".kw-pill").forEach(p => p.classList.remove("active"));
+      pill.classList.add("active");
+
+      consultarAnalisisPalabraClave(word);
+    });
+  });
+}
+
+async function consultarAnalisisPalabraClave(palabra) {
+  const resultBox = document.getElementById("keyword-analysis-result");
+  if (!resultBox) return;
+
+  resultBox.style.display = "block";
+  resultBox.innerHTML = `
+    <div style="display: flex; align-items: center; gap: 10px; color: #94a3b8; font-size: 0.9rem;">
+      <div class="loading-spinner" style="width: 20px; height: 20px; border-width: 2px;"></div>
+      Analizando menciones y frecuencia de "<strong>${escaparHtml(palabra)}</strong>"...
+    </div>
+  `;
+
+  try {
+    const res = await fetch(`${state.backendUrl}/api/dashboard/keywords?q=${encodeURIComponent(palabra)}`);
+    const data = res.ok ? await res.json() : null;
+
+    if (data && data.analisis) {
+      const a = data.analisis;
+      let titularesHtml = a.titulares_relacionados.map(t => `<li style="margin-bottom: 4px; color: #cbd5e1;">📰 ${escaparHtml(t)}</li>`).join("");
+
+      resultBox.innerHTML = `
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; flex-wrap: wrap; gap: 10px;">
+          <h4 style="font-size: 1rem; color: #ffffff; margin: 0; font-weight: 700;">
+            📊 Análisis de Menciones: <span style="color: #38bdf8;">"${escaparHtml(a.palabra)}"</span>
+          </h4>
+          <span style="background: rgba(79, 70, 229, 0.2); color: #818cf8; border: 1px solid #6366f1; padding: 4px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 700;">
+            Categoría: ${escaparHtml(a.categoria)}
+          </span>
+        </div>
+
+        <p style="font-size: 0.9rem; color: #cbd5e1; line-height: 1.5; margin-bottom: 12px;">
+          ${a.resumen_analisis}
+        </p>
+
+        <div style="margin-top: 10px;">
+          <strong style="font-size: 0.8rem; color: #fbbf24; display: block; margin-bottom: 6px;">Coincidencias en Noticias Recientes:</strong>
+          <ul style="padding-left: 18px; margin: 0; font-size: 0.85rem;">
+            ${titularesHtml}
+          </ul>
+        </div>
+      `;
+    }
+  } catch (err) {
+    resultBox.innerHTML = `<div style="color: #ef4444; font-size: 0.9rem;">Error al analizar la palabra clave. Reintenta de nuevo.</div>`;
+  }
 }

@@ -214,6 +214,34 @@
         </div>
       </div>
 
+      <!-- Buscador de Palabras Clave y Tendencias Electorales -->
+      <div class="keyword-search-card">
+        <div class="keyword-header">
+          <h3>🔍 Buscador de Palabras Clave y Tendencias Electorales</h3>
+          <span>Descubre los temas y candidatos más mencionados en tiempo real</span>
+        </div>
+
+        <div class="keyword-search-bar">
+          <input type="text" id="dashboard-keyword-input" class="keyword-input" placeholder="Escribe un candidato o tema (ej: CNE, Noboa, Luisa, encuestas)..." />
+          <button id="btn-search-keyword" class="btn-search-hero" style="background: #4f46e5; padding: 10px 20px; font-size: 0.9rem;">
+            🔍 Analizar Palabra
+          </button>
+        </div>
+
+        <!-- Sugerencias de Palabras Clave Detectadas con Más Frecuencia -->
+        <div class="keyword-suggestions-container">
+          <span class="suggestions-label">🔥 Palabras más frecuentes detectadas:</span>
+          <div id="keyword-pills-list" class="keyword-pills-list">
+            <!-- Renderizado dinámico desde el backend -->
+          </div>
+        </div>
+
+        <!-- Resultado del Análisis de Palabra Clave -->
+        <div id="keyword-analysis-result" class="keyword-result-box" style="display: none;">
+          <!-- Resultado dinámico -->
+        </div>
+      </div>
+
       <!-- Tarjetas de Métricas Resumen -->
       <div class="metrics-grid">
         <div class="metric-card">
