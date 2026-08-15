@@ -69,11 +69,47 @@ const provinciasEcuador = [
 
 // Inicializar al cargar el DOM
 document.addEventListener("DOMContentLoaded", () => {
+  initThemeSwitcher();
   initMap();
   initNavListeners();
   initSearchListeners();
   initFilterListeners();
 });
+
+/**
+ * Sistema de Switcher de Tema (Claro / Oscuro) y Cambio Dinámico de Logo
+ */
+function initThemeSwitcher() {
+  const btnTheme = document.getElementById("btn-toggle-theme");
+  
+  // Obtener tema guardado o usar oscuro por defecto
+  const savedTheme = localStorage.getItem("noai_theme") || "dark";
+  aplicarTema(savedTheme);
+
+  if (btnTheme) {
+    btnTheme.addEventListener("click", () => {
+      const currentTheme = document.documentElement.getAttribute("data-theme") || "dark";
+      const newTheme = currentTheme === "dark" ? "light" : "dark";
+      aplicarTema(newTheme);
+    });
+  }
+}
+
+function aplicarTema(theme) {
+  document.documentElement.setAttribute("data-theme", theme);
+  localStorage.setItem("noai_theme", theme);
+
+  const btnTheme = document.getElementById("btn-toggle-theme");
+  const logoImg = document.getElementById("brand-logo-img");
+
+  if (theme === "light") {
+    if (logoImg) logoImg.src = "img/LOGO_BLACK.png";
+    if (btnTheme) btnTheme.innerHTML = "☀️ Modo Claro";
+  } else {
+    if (logoImg) logoImg.src = "img/LOGO_WHITE.png";
+    if (btnTheme) btnTheme.innerHTML = "🌙 Modo Oscuro";
+  }
+}
 
 /**
  * Inicializa Leaflet.js centrado en Ecuador

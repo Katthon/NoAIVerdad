@@ -3,24 +3,36 @@
    Estética: Moderna, limpia, glassmorphism, responsive, tipografía prémium
    ========================================================================== */
 
-:root {
+:root, [data-theme="dark"] {
   --primary-color: #4f46e5;      /* Índigo vibrante */
   --primary-hover: #4338ca;
   --secondary-color: #06b6d4;    /* Cían */
   --accent-color: #f59e0b;       /* Ámbar de alerta/destacado */
   --bg-dark: #0f172a;            /* Azul noche oscuro */
+  --bg-header: rgba(15, 23, 42, 0.95);
   --bg-sidebar: #1e293b;         /* Azul pizarra */
   --bg-card: #ffffff;
   --text-main: #0f172a;
-  --text-muted: #64748b;
-  --text-light: #f8fafc;
-  --border-color: #e2e8f0;
+  --text-title: #ffffff;
+  --text-subtitle: #94a3b8;
+  --border-color: rgba(255, 255, 255, 0.1);
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
   --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
   --radius-lg: 12px;
   --radius-md: 8px;
-  --sidebar-width: 480px;        /* Ampliado para mayor legibilidad del contenido */
+  --sidebar-width: 480px;
+}
+
+[data-theme="light"] {
+  --bg-dark: #f8fafc;
+  --bg-header: rgba(255, 255, 255, 0.96);
+  --bg-sidebar: #ffffff;
+  --bg-card: #ffffff;
+  --text-main: #0f172a;
+  --text-title: #0f172a;
+  --text-subtitle: #475569;
+  --border-color: #cbd5e1;
 }
 
 * {
@@ -37,19 +49,21 @@ body {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* --- Header / Top Bar --- */
 .header {
   height: 64px;
-  background: rgba(15, 23, 42, 0.95);
+  background: var(--bg-header);
   backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid var(--border-color);
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 24px;
   z-index: 30;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
 .brand-container {
@@ -59,24 +73,22 @@ body {
   cursor: pointer;
 }
 
-.brand-logo {
-  width: 36px;
-  height: 36px;
-  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-weight: 800;
-  font-size: 1.1rem;
-  box-shadow: 0 0 15px rgba(79, 70, 229, 0.4);
+.brand-logo-img {
+  height: 38px;
+  width: auto;
+  max-width: 140px;
+  object-fit: contain;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease;
+}
+
+.brand-logo-img:hover {
+  transform: scale(1.06);
 }
 
 .brand-title {
   font-size: 1.25rem;
   font-weight: 700;
-  color: var(--text-light);
+  color: var(--text-title);
   letter-spacing: -0.5px;
 }
 
@@ -86,7 +98,7 @@ body {
 
 .brand-subtitle {
   font-size: 0.8rem;
-  color: #94a3b8;
+  color: var(--text-subtitle);
   background: rgba(255, 255, 255, 0.08);
   padding: 4px 10px;
   border-radius: 20px;
@@ -97,6 +109,33 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.theme-toggle-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-color);
+  color: var(--text-title);
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+
+.theme-toggle-btn:hover {
+  background: rgba(79, 70, 229, 0.15);
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+[data-theme="light"] .theme-toggle-btn {
+  background: #e2e8f0;
+  border-color: #cbd5e1;
+  color: #0f172a;
 }
 
 .nav-tab {
