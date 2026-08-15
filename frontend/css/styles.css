@@ -376,10 +376,10 @@ body {
 
 /* --- Hero Banner Llamativo con Colapso Suave --- */
 .hero-banner {
-  background: linear-gradient(135deg, #1e1b4b 0%, #0f172a 100%);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  border-bottom: 1px solid #cbd5e1;
   padding: 16px 28px;
-  color: #ffffff;
+  color: #0f172a;
   transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), 
               padding 0.4s cubic-bezier(0.4, 0, 0.2, 1), 
               opacity 0.3s ease;
@@ -403,9 +403,9 @@ body {
 
 .hero-badge {
   display: inline-block;
-  background: rgba(79, 70, 229, 0.25);
-  color: #818cf8;
-  border: 1px solid rgba(129, 140, 248, 0.3);
+  background: rgba(79, 70, 229, 0.15);
+  color: #4338ca;
+  border: 1px solid rgba(79, 70, 229, 0.3);
   padding: 3px 10px;
   border-radius: 20px;
   font-size: 0.75rem;
@@ -418,14 +418,15 @@ body {
   font-weight: 800;
   letter-spacing: -0.5px;
   margin-bottom: 4px;
-  background: linear-gradient(90deg, #ffffff, #cbd5e1);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: #0f172a !important;
+  background: none !important;
+  -webkit-background-clip: unset !important;
+  -webkit-text-fill-color: #0f172a !important;
 }
 
 .hero-description {
   font-size: 0.85rem;
-  color: #94a3b8;
+  color: #334155 !important;
   max-width: 800px;
   margin-bottom: 12px;
   line-height: 1.4;
