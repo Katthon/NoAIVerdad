@@ -411,7 +411,7 @@ body {
 }
 
 /* Tarjeta de Contenido */
-.ad-card {
+.item-card {
   background: var(--bg-card);
   border-radius: var(--radius-lg);
   border: 1px solid var(--border-color);
@@ -421,25 +421,25 @@ body {
   transition: all 0.2s ease;
 }
 
-.ad-card:hover {
+.item-card:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-md);
 }
 
-.ad-card-header {
+.item-card-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   margin-bottom: 10px;
 }
 
-.ad-page-name {
+.item-page-name {
   font-weight: 700;
   font-size: 0.9rem;
   color: var(--bg-dark);
 }
 
-.ad-reach-badge {
+.item-reach-badge {
   background: #e0e7ff;
   color: #3730a3;
   font-size: 0.75rem;
@@ -449,14 +449,14 @@ body {
   white-space: nowrap;
 }
 
-.ad-title {
+.item-title {
   font-weight: 600;
   font-size: 0.875rem;
   color: #1e293b;
   margin-bottom: 8px;
 }
 
-.ad-meta-grid {
+.item-meta-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 4px;
@@ -467,13 +467,13 @@ body {
   color: var(--text-muted);
 }
 
-.ad-footer {
+.item-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
-.btn-meta {
+.btn-action {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -487,7 +487,7 @@ body {
   transition: background 0.2s ease;
 }
 
-.btn-meta:hover {
+.btn-action:hover {
   filter: brightness(0.9);
 }
 

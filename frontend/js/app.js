@@ -471,7 +471,7 @@ function renderizarResultados(data) {
     ? rawBluesky.filter(item => itemCumpleAnio(item, anio))
     : [];
 
-  const metaAds = (seccion === "todas" || seccion === "meta_ads")
+  const metaAds = (seccion === "todas" || seccion === "meta_ads" || seccion === "meta_publicaciones")
     ? rawMetaAds.filter(item => itemCumpleAnio(item, anio))
     : [];
 
@@ -508,19 +508,19 @@ function renderizarResultados(data) {
       const fechaFormatted = formatearFechaSafe(n.fecha);
 
       html += `
-        <div class="ad-card" style="border-left: 4px solid #4f46e5;">
-          <div class="ad-card-header">
-            <div class="ad-page-name">${escaparHtml(n.fuente)}</div>
+        <div class="item-card" style="border-left: 4px solid #4f46e5;">
+          <div class="item-card-header">
+            <div class="item-page-name">${escaparHtml(n.fuente)}</div>
             <span style="font-size: 0.75rem; color: #94a3b8;">${fechaFormatted}</span>
           </div>
 
-          <div class="ad-title" style="color: #1e293b; font-weight: 600;">
+          <div class="item-title" style="color: #1e293b; font-weight: 600;">
             ${escaparHtml(n.titulo)}
           </div>
 
-          <div class="ad-footer" style="margin-top: 12px;">
+          <div class="item-footer" style="margin-top: 12px;">
             <span style="font-size: 0.75rem; color: #64748b;">Noticia</span>
-            <a href="${n.url}" target="_blank" rel="noopener noreferrer" class="btn-meta">
+            <a href="${n.url}" target="_blank" rel="noopener noreferrer" class="btn-action">
               Leer Noticia
             </a>
           </div>
@@ -578,27 +578,27 @@ function renderizarResultados(data) {
       }
 
       html += `
-        <div class="ad-card" style="border-left: 4px solid ${esFalso ? '#ef4444' : '#06b6d4'};">
-          <div class="ad-card-header">
-            <div class="ad-page-name" style="font-size: 0.85rem; color: #475569;">
+        <div class="item-card" style="border-left: 4px solid ${esFalso ? '#ef4444' : '#06b6d4'};">
+          <div class="item-card-header">
+            <div class="item-page-name" style="font-size: 0.85rem; color: #475569;">
               Afirma: <strong>${escaparHtml(v.claimant)}</strong>
             </div>
-            <span class="ad-reach-badge" style="background: ${esFalso ? '#fef2f2' : '#e0f2fe'}; color: ${esFalso ? '#991b1b' : '#0369a1'}; border: 1px solid ${esFalso ? '#fecaca' : '#bae6fd'}; font-weight: 600;">
+            <span class="item-reach-badge" style="background: ${esFalso ? '#fef2f2' : '#e0f2fe'}; color: ${esFalso ? '#991b1b' : '#0369a1'}; border: 1px solid ${esFalso ? '#fecaca' : '#bae6fd'}; font-weight: 600;">
               ${esFalso ? '⚠️ Advertencia' : 'Fact-Check'}
             </span>
           </div>
 
-          <div class="ad-title" style="color: #0f172a; font-size: 0.925rem; margin-bottom: 8px;">
+          <div class="item-title" style="color: #0f172a; font-size: 0.925rem; margin-bottom: 8px;">
             "${escaparHtml(v.text)}"
           </div>
 
           ${warningHtml}
 
-          <div class="ad-footer">
+          <div class="item-footer">
             <span style="font-size: 0.75rem; color: #64748b;">
               Fuente: <strong>${escaparHtml(v.publisher)}</strong>
             </span>
-            <a href="${v.url}" target="_blank" rel="noopener noreferrer" class="btn-meta" style="background: ${esFalso ? '#dc2626' : '#0284c7'};">
+            <a href="${v.url}" target="_blank" rel="noopener noreferrer" class="btn-action" style="background: ${esFalso ? '#dc2626' : '#0284c7'};">
               Ver Fact-Check
             </a>
           </div>
@@ -624,8 +624,8 @@ function renderizarResultados(data) {
       const stats = tw.stats || {};
 
       html += `
-        <div class="ad-card" style="border-left: 4px solid #1d9bf0;">
-          <div class="ad-card-header" style="margin-bottom: 8px;">
+        <div class="item-card" style="border-left: 4px solid #1d9bf0;">
+          <div class="item-card-header" style="margin-bottom: 8px;">
             <div style="display: flex; align-items: center; gap: 8px;">
               <div style="font-weight: 700; font-size: 0.9rem; color: #0f172a;">${escaparHtml(user.name || 'Usuario X')}</div>
               <div style="font-size: 0.8rem; color: #64748b;">${escaparHtml(user.username || '')}</div>
@@ -633,20 +633,20 @@ function renderizarResultados(data) {
             <span style="font-size: 0.75rem; color: #94a3b8;">${escaparHtml(tw.date || '')}</span>
           </div>
 
-          <div class="ad-body" style="font-size: 0.875rem; color: #1e293b; line-height: 1.45; margin-bottom: 12px;">
+          <div class="item-body" style="font-size: 0.875rem; color: #1e293b; line-height: 1.45; margin-bottom: 12px;">
             ${escaparHtml(tw.text)}
           </div>
 
-          <div class="ad-meta-grid">
+          <div class="item-meta-grid">
             <div>❤️ <strong>${stats.likes || 0}</strong></div>
             <div>🔄 <strong>${stats.retweets || 0}</strong></div>
             <div>💬 <strong>${stats.replies || 0}</strong></div>
             <div>💬 <strong>${stats.quotes || 0}</strong></div>
           </div>
 
-          <div class="ad-footer" style="margin-top: 10px;">
+          <div class="item-footer" style="margin-top: 10px;">
             <span style="font-size: 0.75rem; color: #94a3b8;">X (Twitter)</span>
-            <a href="${tw.link}" target="_blank" rel="noopener noreferrer" class="btn-meta" style="background: #1d9bf0;">
+            <a href="${tw.link}" target="_blank" rel="noopener noreferrer" class="btn-action" style="background: #1d9bf0;">
               Ver en X
             </a>
           </div>
@@ -673,8 +673,8 @@ function renderizarResultados(data) {
       const dateFormatted = bp.date ? String(bp.date).split('T')[0] : '';
 
       html += `
-        <div class="ad-card" style="border-left: 4px solid #0285ff;">
-          <div class="ad-card-header" style="margin-bottom: 8px;">
+        <div class="item-card" style="border-left: 4px solid #0285ff;">
+          <div class="item-card-header" style="margin-bottom: 8px;">
             <div style="display: flex; align-items: center; gap: 8px;">
               <div style="font-weight: 700; font-size: 0.9rem; color: #0f172a;">${escaparHtml(author.name || 'Usuario Bluesky')}</div>
               <div style="font-size: 0.8rem; color: #64748b;">${escaparHtml(author.handle || '')}</div>
@@ -682,20 +682,20 @@ function renderizarResultados(data) {
             <span style="font-size: 0.75rem; color: #94a3b8;">${escaparHtml(dateFormatted)}</span>
           </div>
 
-          <div class="ad-body" style="font-size: 0.875rem; color: #1e293b; line-height: 1.45; margin-bottom: 12px;">
+          <div class="item-body" style="font-size: 0.875rem; color: #1e293b; line-height: 1.45; margin-bottom: 12px;">
             ${escaparHtml(bp.text)}
           </div>
 
-          <div class="ad-meta-grid">
+          <div class="item-meta-grid">
             <div>❤️ <strong>${stats.likes || 0}</strong></div>
             <div>🔄 <strong>${stats.reposts || 0}</strong></div>
             <div>💬 <strong>${stats.replies || 0}</strong></div>
             <div>💬 <strong>${stats.quotes || 0}</strong></div>
           </div>
 
-          <div class="ad-footer" style="margin-top: 10px;">
+          <div class="item-footer" style="margin-top: 10px;">
             <span style="font-size: 0.75rem; color: #0285ff; font-weight: 600;">🦋 Bluesky</span>
-            <a href="${bp.link}" target="_blank" rel="noopener noreferrer" class="btn-meta" style="background: #0285ff;">
+            <a href="${bp.link}" target="_blank" rel="noopener noreferrer" class="btn-action" style="background: #0285ff;">
               Ver en Bluesky
             </a>
           </div>
@@ -704,15 +704,15 @@ function renderizarResultados(data) {
     });
   }
 
-  // 5. SECCIÓN: Anuncios Políticos en Meta (Facebook / Instagram Ad Library)
+  // 5. SECCIÓN: Publicaciones Políticas en Meta (Facebook / Instagram)
   if (metaAds.length > 0) {
     html += `
       <div class="section-title-container" style="margin-top: 20px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
         <div style="display: flex; align-items: center; gap: 8px;">
           <span style="display: inline-block; width: 10px; height: 10px; background-color: #1877f2; border-radius: 50%;"></span>
-          <h3 style="font-size: 0.95rem; font-weight: 700; color: #0f172a;">Anuncios de Meta / Facebook (${metaAds.length})</h3>
+          <h3 style="font-size: 0.95rem; font-weight: 700; color: #0f172a;">Publicaciones de Meta / Facebook (${metaAds.length})</h3>
         </div>
-        <span style="font-size: 0.75rem; color: #1877f2; font-weight: 600;">📢 Meta Ad Library</span>
+        <span style="font-size: 0.75rem; color: #1877f2; font-weight: 600;">📢 Meta (FB / IG)</span>
       </div>
     `;
 
@@ -721,23 +721,23 @@ function renderizarResultados(data) {
       const dateFormatted = ad.date || "";
 
       html += `
-        <div class="ad-card" style="border-left: 4px solid #1877f2;">
-          <div class="ad-card-header" style="margin-bottom: 8px;">
+        <div class="item-card" style="border-left: 4px solid #1877f2;">
+          <div class="item-card-header" style="margin-bottom: 8px;">
             <div style="display: flex; align-items: center; gap: 8px;">
               <div style="font-weight: 700; font-size: 0.9rem; color: #0f172a;">${escaparHtml(pageName)}</div>
-              <span class="ad-reach-badge" style="background: #e7f3ff; color: #1877f2; border: 1px solid #b8daff; font-weight: 600;">Anuncio Electoral</span>
+              <span class="item-reach-badge" style="background: #e7f3ff; color: #1877f2; border: 1px solid #b8daff; font-weight: 600;">Monitoreo Meta</span>
             </div>
             <span style="font-size: 0.75rem; color: #94a3b8;">${escaparHtml(dateFormatted)}</span>
           </div>
 
-          <div class="ad-body" style="font-size: 0.875rem; color: #1e293b; line-height: 1.45; margin-bottom: 12px;">
+          <div class="item-body" style="font-size: 0.875rem; color: #1e293b; line-height: 1.45; margin-bottom: 12px;">
             ${escaparHtml(ad.text)}
           </div>
 
-          <div class="ad-footer" style="margin-top: 10px;">
-            <span style="font-size: 0.75rem; color: #1877f2; font-weight: 600;">📢 Meta Ads</span>
-            <a href="${ad.link}" target="_blank" rel="noopener noreferrer" class="btn-meta" style="background: #1877f2;">
-              Ver Anuncio en Meta
+          <div class="item-footer" style="margin-top: 10px;">
+            <span style="font-size: 0.75rem; color: #1877f2; font-weight: 600;">📢 Meta</span>
+            <a href="${ad.link}" target="_blank" rel="noopener noreferrer" class="btn-action" style="background: #1877f2;">
+              Ver Publicación
             </a>
           </div>
         </div>
