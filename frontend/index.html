@@ -148,6 +148,12 @@
   <!-- PESTAÑA 2: VISTA DASHBOARD (ESTADÍSTICAS Y GRÁFICOS) -->
   <main id="view-dashboard" class="view-section">
     <div class="dashboard-wrapper">
+      <!-- Overlay de Carga del Dashboard -->
+      <div id="dashboard-loading" class="dashboard-loading-overlay" style="display: none;">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Cargando y analizando noticias en tiempo real...</div>
+      </div>
+
       <div class="dashboard-header">
         <h2 class="dashboard-title">📊 Dashboard de Inteligencia Electoral</h2>
         <p class="dashboard-subtitle">Análisis porcentual y métricas comparativas del volumen de noticias, fact-checks y redes sociales en Ecuador.</p>
@@ -213,16 +219,8 @@
         <div class="metric-card">
           <div class="metric-icon" style="background: #e0e7ff; color: #4f46e5;">📍</div>
           <div class="metric-data">
-            <div class="metric-value" id="metric-total-items">24 / 24</div>
-            <div class="metric-label" id="metric-total-label">Provincias Monitoreadas</div>
-          </div>
-        </div>
-
-        <div class="metric-card">
-          <div class="metric-icon" style="background: #e0f2fe; color: #0284c7;">⚡</div>
-          <div class="metric-data">
-            <div class="metric-value" id="metric-live-status">100%</div>
-            <div class="metric-label">Actualización en Vivo</div>
+            <div class="metric-value">24 / 24</div>
+            <div class="metric-label">Provincias Monitoreadas</div>
           </div>
         </div>
 
@@ -256,10 +254,10 @@
           </div>
         </div>
 
-        <!-- Gráfico 2: Provincias con Mayor Cobertura Noticiosa -->
-        <div class="chart-card">
+        <!-- Gráfico 2: Provincias con Mayor Cobertura Noticiosa (Solo visible en vista Nacional Ecuador) -->
+        <div id="card-chart-provincias" class="chart-card">
           <div class="chart-header">
-            <h3>Provincias con Mayor CoberturaNoticiosa</h3>
+            <h3>Provincias con Mayor Cobertura Noticiosa</h3>
             <span>Porcentaje de volumen electoral</span>
           </div>
           <div class="chart-body">
