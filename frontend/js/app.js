@@ -3,16 +3,33 @@
  * Plataforma Cívica para Monitoreo Electoral en Ecuador.
  */
 
+// Obtener la URL del backend dinámicamente desde el entorno (.env / Railway / Vite)
+const obtenerBackendUrl = () => {
+  if (typeof window !== 'undefined') {
+    if (window.VITE_API_URL) return window.VITE_API_URL;
+    if (window.API_URL) return window.API_URL;
+    if (window.process && window.process.env && window.process.env.VITE_API_URL) {
+      return window.process.env.VITE_API_URL;
+    }
+  }
+  try {
+    if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL) {
+      return import.meta.env.VITE_API_URL;
+    }
+  } catch (e) {}
+  return 'http://localhost:8000';
+};
+
 // Estado global de la aplicación
 const state = {
   map: null,
   marcadores: {},
   provinciaSeleccionada: null,
-  backendUrl: 'http://localhost:8000',
+  backendUrl: obtenerBackendUrl(),
   chartsInicializados: false,
   charts: {},
   datosActuales: null,       // Guardar respuesta raw del backend
-  filtroSeccion: "noticias", // 'noticias' | 'verificaciones' | 'tweets' | 'bluesky'
+  filtroSeccion: "noticias", // 'noticias' | 'verificaciones' | 'tweets' | 'bluesky' | 'meta_ads'
   filtroAnio: "todos",        // 'todos' | '2026' | '2025' | '2024' | '2023'
   feedCache: {}              // Cache client-side: feedCache[provincia][seccion]
 };
