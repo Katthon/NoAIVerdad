@@ -153,20 +153,75 @@
         <p class="dashboard-subtitle">Análisis porcentual y métricas comparativas del volumen de noticias, fact-checks y redes sociales en Ecuador.</p>
       </div>
 
+      <!-- Barra de Controles: Filtro por Provincia + Estado En Vivo + Actualizar -->
+      <div class="dashboard-controls-bar">
+        <div class="dashboard-select-wrapper">
+          <label for="dashboard-province-select">📍 Filtrar Provincia:</label>
+          <select id="dashboard-province-select" class="filter-select" style="min-width: 220px;">
+            <option value="todas">🇪🇨 Todas las Provincias (Ecuador)</option>
+            <option value="azuay">Azuay</option>
+            <option value="bolivar">Bolívar</option>
+            <option value="canar">Cañar</option>
+            <option value="carchi">Carchi</option>
+            <option value="chimborazo">Chimborazo</option>
+            <option value="cotopaxi">Cotopaxi</option>
+            <option value="el_oro">El Oro</option>
+            <option value="esmeraldas">Esmeraldas</option>
+            <option value="galapagos">Galápagos</option>
+            <option value="guayas">Guayas</option>
+            <option value="imbabura">Imbabura</option>
+            <option value="loja">Loja</option>
+            <option value="los_rios">Los Ríos</option>
+            <option value="manabi">Manabí</option>
+            <option value="morona_santiago">Morona Santiago</option>
+            <option value="napo">Napo</option>
+            <option value="orellana">Orellana</option>
+            <option value="pastaza">Pastaza</option>
+            <option value="pichincha">Pichincha</option>
+            <option value="santa_elena">Santa Elena</option>
+            <option value="santo_domingo">Santo Domingo de los Tsáchilas</option>
+            <option value="sucumbios">Sucumbíos</option>
+            <option value="tungurahua">Tungurahua</option>
+            <option value="zamora_chinchipe">Zamora Chinchipe</option>
+          </select>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <div class="live-pill">
+            <span class="pulse-dot"></span>
+            <span id="live-update-text">100% En Vivo (Sincronizado)</span>
+          </div>
+          <button id="btn-refresh-dashboard" class="btn-sidebar-change" style="background: #334155; color: #ffffff; border-color: #475569;">
+            🔄 Actualizar Datos
+          </button>
+        </div>
+      </div>
+
+      <!-- Tarjeta de Resumen General de Noticias en Tiempo Real -->
+      <div class="summary-card">
+        <div class="summary-header">
+          <h3>📝 Resumen General de Inteligencia Cívica en Tiempo Real</h3>
+          <span id="summary-scope-badge" class="province-badge" style="background: #0284c7; color: #ffffff;">Ecuador</span>
+        </div>
+        <div id="summary-content" class="summary-body">
+          Cargando análisis en tiempo real de noticias, verificaciones y redes sociales...
+        </div>
+      </div>
+
       <!-- Tarjetas de Métricas Resumen -->
       <div class="metrics-grid">
         <div class="metric-card">
           <div class="metric-icon" style="background: #e0e7ff; color: #4f46e5;">📍</div>
           <div class="metric-data">
-            <div class="metric-value">24 / 24</div>
-            <div class="metric-label">Provincias Monitoreadas</div>
+            <div class="metric-value" id="metric-total-items">24 / 24</div>
+            <div class="metric-label" id="metric-total-label">Provincias Monitoreadas</div>
           </div>
         </div>
 
         <div class="metric-card">
           <div class="metric-icon" style="background: #e0f2fe; color: #0284c7;">⚡</div>
           <div class="metric-data">
-            <div class="metric-value">100%</div>
+            <div class="metric-value" id="metric-live-status">100%</div>
             <div class="metric-label">Actualización en Vivo</div>
           </div>
         </div>
