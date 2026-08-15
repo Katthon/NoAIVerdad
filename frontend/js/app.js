@@ -1103,7 +1103,25 @@ async function consultarAnalisisPalabraClave(palabra) {
 
     if (data && data.analisis) {
       const a = data.analisis;
-      let titularesHtml = a.titulares_relacionados.map(t => `<li style="margin-bottom: 4px; color: #cbd5e1;">📰 ${escaparHtml(t)}</li>`).join("");
+      
+      let titularesSection = "";
+      if (a.titulares_relacionados && a.titulares_relacionados.length > 0) {
+        const titularesItems = a.titulares_relacionados.map(t => `<li style="margin-bottom: 4px; color: #cbd5e1;">📰 ${escaparHtml(t)}</li>`).join("");
+        titularesSection = `
+          <div style="margin-top: 10px;">
+            <strong style="font-size: 0.8rem; color: #fbbf24; display: block; margin-bottom: 6px;">Coincidencias en Noticias Recientes:</strong>
+            <ul style="padding-left: 18px; margin: 0; font-size: 0.85rem;">
+              ${titularesItems}
+            </ul>
+          </div>
+        `;
+      } else {
+        titularesSection = `
+          <div style="margin-top: 10px; font-size: 0.85rem; color: #94a3b8; font-style: italic; background: rgba(255,255,255,0.03); padding: 8px 12px; border-radius: 6px;">
+            ℹ️ No se detectaron noticias o publicaciones que contengan exactamente esta palabra clave en la cobertura en vivo.
+          </div>
+        `;
+      }
 
       resultBox.innerHTML = `
         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; flex-wrap: wrap; gap: 10px;">
@@ -1119,12 +1137,7 @@ async function consultarAnalisisPalabraClave(palabra) {
           ${a.resumen_analisis}
         </p>
 
-        <div style="margin-top: 10px;">
-          <strong style="font-size: 0.8rem; color: #fbbf24; display: block; margin-bottom: 6px;">Coincidencias en Noticias Recientes:</strong>
-          <ul style="padding-left: 18px; margin: 0; font-size: 0.85rem;">
-            ${titularesHtml}
-          </ul>
-        </div>
+        ${titularesSection}
       `;
     }
   } catch (err) {

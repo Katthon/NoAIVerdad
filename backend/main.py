@@ -180,8 +180,7 @@ def obtener_estadisticas_dashboard(provincia: Optional[str] = Query(None)):
 def obtener_analisis_palabras_clave(q: Optional[str] = Query(None), provincia: Optional[str] = Query(None)):
     """
     Endpoint para el Buscador de Palabras Clave y Tendencias Electorales.
-    Devuelve la lista de palabras clave más frecuentes en Ecuador y el análisis
-    detallado cuando se consulta un término en específico.
+    Realiza una búsqueda real y dinámica sobre las noticias, verificaciones y redes sociales.
     """
     trending_list = [
         {"word": "CNE", "count": 142, "category": "Institución Electoral"},
@@ -202,33 +201,98 @@ def obtener_analisis_palabras_clave(q: Optional[str] = Query(None), provincia: O
             "analisis": None
         }
 
-    word_upper = word_query.upper()
-    found_item = next((item for item in trending_list if item["word"].upper() == word_upper), None)
-    menciones = found_item["count"] if found_item else 42
+    word_lower = word_query.lower()
+    prov_target = "Pichincha"
+    if isinstance(provincia, str) and provincia.strip() and provincia.lower() not in ["todas", "ecuador"]:
+        prov_target = provincia.strip()
+
+    # Buscar en el feed real en vivo
+    feed = unified_service.obtener_feed_completo(prov_target)
+    
+    coincidencias = []
+    c_prensa = 0
+    c_fact = 0
+    c_x = 0
+    c_bsky = 0
+    c_meta = 0
+
+    # 1. Prensa en Tiempo Real
+    for item in feed.get("tiempo_real", []):
+        txt = (item.get("titulo", "") + " " + item.get("fuente", "")).lower()
+        if word_lower in txt:
+            c_prensa += 1
+            coincidencias.append({"titulo": item.get("titulo"), "fuente": "Prensa (" + item.get("fuente", "Prensa") + ")", "link": item.get("link")})
+
+    # 2. Verificaciones Fact Check
+    for item in feed.get("verificaciones", []):
+        txt = (item.get("claim", "") + " " + item.get("publisher", "")).lower()
+        if word_lower in txt:
+            c_fact += 1
+            coincidencias.append({"titulo": "Fact-Check: " + item.get("claim", ""), "fuente": item.get("publisher", "Google FactCheck"), "link": item.get("url")})
+
+    # 3. X / Twitter
+    for item in feed.get("tweets_recientes", []):
+        txt = (item.get("texto", "") + " " + item.get("usuario", "")).lower()
+        if word_lower in txt:
+            c_x += 1
+            coincidencias.append({"titulo": "X (" + item.get("usuario", "") + "): " + item.get("texto", "")[:120], "fuente": "X / Twitter", "link": item.get("link")})
+
+    # 4. Bluesky
+    for item in feed.get("bluesky_posts", []):
+        txt = (item.get("texto", "") + " " + item.get("autor", "")).lower()
+        if word_lower in txt:
+            c_bsky += 1
+            coincidencias.append({"titulo": "Bluesky (" + item.get("autor", "") + "): " + item.get("texto", "")[:120], "fuente": "Bluesky", "link": item.get("link")})
+
+    # 5. Meta Ads
+    for item in feed.get("meta_ads", []):
+        txt = (item.get("text", "") + " " + item.get("page_name", "")).lower()
+        if word_lower in txt:
+            c_meta += 1
+            coincidencias.append({"titulo": "Meta (" + item.get("page_name", "") + "): " + item.get("text", "")[:120], "fuente": "Meta FB/IG", "link": item.get("link")})
+
+    total_menciones = len(coincidencias)
+
+    # Si no hubo ninguna coincidencia real (ej: palabras raras o inexistentes)
+    if total_menciones == 0:
+        return {
+            "trending_keywords": trending_list,
+            "analisis": {
+                "palabra": word_query,
+                "menciones_totales": 0,
+                "categoria": "Sin Menciones Detectadas",
+                "nivel_alerta": 0,
+                "distribucion": {"prensa": 0, "fact_check": 0, "x_twitter": 0, "bluesky": 0, "meta": 0},
+                "resumen_analisis": f"No se encontraron menciones para el término '<strong>{word_query}</strong>' en la cobertura periodística ni en las publicaciones monitoreadas en tiempo real.",
+                "titulares_relacionados": []
+            }
+        }
+
+    # Si se encontraron coincidencias reales
+    found_trending = next((item for item in trending_list if item["word"].lower() == word_lower), None)
+    cat = found_trending["category"] if found_trending else "Término Electoral"
+
+    titulares_muestra = [c["titulo"] for c in coincidencias[:4]]
 
     return {
         "trending_keywords": trending_list,
         "analisis": {
             "palabra": word_query,
-            "menciones_totales": menciones,
-            "categoria": found_item["category"] if found_item else "Término General",
-            "nivel_alerta": 15 if ("NOBOA" in word_upper or "LUISA" in word_upper) else 8,
+            "menciones_totales": total_menciones,
+            "categoria": cat,
+            "nivel_alerta": 15 if c_fact > 0 else 5,
             "distribucion": {
-                "prensa": 40,
-                "fact_check": 25,
-                "x_twitter": 20,
-                "bluesky": 10,
-                "meta": 5
+                "prensa": c_prensa,
+                "fact_check": c_fact,
+                "x_twitter": c_x,
+                "bluesky": c_bsky,
+                "meta": c_meta
             },
             "resumen_analisis": (
-                f"El término <strong>'{word_query}'</strong> registra <span class='summary-highlight'>{menciones} menciones activas</span> "
-                f"en la cobertura electoral reciente. La mayor frecuencia se detectó en medios de prensa nacional (40%) y redes sociales (30%)."
+                f"El término <strong>'{word_query}'</strong> registra <span class='summary-highlight'>{total_menciones} coincidencia(s) en vivo</span> "
+                f"en el monitoreo actual ({c_prensa} en Prensa, {c_fact} en Fact-Check, {c_x} en X, {c_bsky} en Bluesky, {c_meta} en Meta)."
             ),
-            "titulares_relacionados": [
-                f"Cobertura especial sobre '{word_query}' y el desarrollo de la jornada electoral en Ecuador.",
-                f"Análisis periodístico de tendencias alrededor de '{word_query}' para el 2027.",
-                f"Verificación de declaraciones recientes relacionadas con '{word_query}'."
-            ]
+            "titulares_relacionados": titulares_muestra
         }
     }
 
