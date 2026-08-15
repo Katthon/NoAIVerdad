@@ -176,6 +176,29 @@ function expandirHero() {
 }
 
 /**
+ * Alterna (abre/cierra) suavemente la sección del Hero Banner al hacer clic
+ */
+function alternarHero() {
+  const heroBanner = document.querySelector(".hero-banner");
+  if (!heroBanner) return;
+
+  const estaColapsado = heroBanner.classList.contains("collapsed");
+
+  if (estaColapsado) {
+    expandirHero();
+    setTimeout(() => {
+      const selectProvincia = document.getElementById("hero-province-select");
+      if (selectProvincia) {
+        selectProvincia.focus();
+        selectProvincia.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }, 150);
+  } else {
+    colapsarHero();
+  }
+}
+
+/**
  * EventListeners para la Navegación por Pestañas y Marca
  */
 function initNavListeners() {
@@ -186,27 +209,16 @@ function initNavListeners() {
   const viewDashboard = document.getElementById("view-dashboard");
   const brandLogo = document.querySelector(".brand-container");
 
-  const abrirHeroYSolicitarProvincia = () => {
-    expandirHero();
-    setTimeout(() => {
-      const selectProvincia = document.getElementById("hero-province-select");
-      if (selectProvincia) {
-        selectProvincia.focus();
-        selectProvincia.scrollIntoView({ behavior: "smooth", block: "center" });
-      }
-    }, 150);
-  };
-
   if (brandLogo) {
-    brandLogo.addEventListener("click", abrirHeroYSolicitarProvincia);
+    brandLogo.addEventListener("click", alternarHero);
   }
 
   if (btnReopenHero) {
-    btnReopenHero.addEventListener("click", abrirHeroYSolicitarProvincia);
+    btnReopenHero.addEventListener("click", alternarHero);
   }
 
   if (btnSidebarChange) {
-    btnSidebarChange.addEventListener("click", abrirHeroYSolicitarProvincia);
+    btnSidebarChange.addEventListener("click", alternarHero);
   }
 
   if (btnDashboard) {
