@@ -904,7 +904,7 @@ function renderizarChartFuentes(data) {
         ],
         backgroundColor: ["#4f46e5", "#ef4444", "#1d9bf0", "#0285ff", "#1877f2"],
         borderWidth: 2,
-        borderColor: "#1e293b"
+        borderColor: "#ffffff"
       }]
     },
     options: {
@@ -913,8 +913,8 @@ function renderizarChartFuentes(data) {
       plugins: {
         legend: { 
           position: "bottom", 
-          onClick: () => {}, // Desactivar ocultamiento al hacer clic en la leyenda
-          labels: { color: "#f8fafc", font: { family: "Inter", size: 11, weight: "600" } } 
+          onClick: () => {}, 
+          labels: { color: "#0f172a", font: { family: "Inter", size: 12, weight: "700" } } 
         }
       }
     }
@@ -960,8 +960,8 @@ function renderizarChartProvincias(data) {
         legend: { display: false }
       },
       scales: {
-        x: { beginAtZero: true, max: 100, ticks: { color: "#94a3b8" }, grid: { color: "#334155" } },
-        y: { ticks: { color: "#f8fafc" }, grid: { color: "#334155" } }
+        x: { beginAtZero: true, max: 100, ticks: { color: "#334155", font: { family: "Inter", size: 11, weight: "600" } }, grid: { color: "#e2e8f0" } },
+        y: { ticks: { color: "#0f172a", font: { family: "Inter", size: 12, weight: "700" } }, grid: { color: "#e2e8f0" } }
       }
     }
   });
@@ -985,7 +985,7 @@ function renderizarChartAdvertencias(data) {
         data: [adv.informacion_general, adv.con_advertencia_google],
         backgroundColor: ["#10b981", "#ef4444"],
         borderWidth: 2,
-        borderColor: "#1e293b"
+        borderColor: "#ffffff"
       }]
     },
     options: {
@@ -994,8 +994,8 @@ function renderizarChartAdvertencias(data) {
       plugins: {
         legend: { 
           position: "bottom", 
-          onClick: () => {}, // Desactivar ocultamiento al hacer clic en la leyenda
-          labels: { color: "#f8fafc", font: { family: "Inter", size: 11, weight: "600" } } 
+          onClick: () => {}, 
+          labels: { color: "#0f172a", font: { family: "Inter", size: 12, weight: "700" } } 
         }
       }
     }
