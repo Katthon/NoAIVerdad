@@ -3,21 +3,29 @@
  * Plataforma Cívica para Monitoreo Electoral en Ecuador.
  */
 
-// Obtener la URL del backend dinámicamente desde el entorno (.env / Railway / Vite)
+// Obtener la URL del backend dinámicamente según el entorno de ejecución (localhost vs producción Railway)
 const obtenerBackendUrl = () => {
   if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    const isLocal = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '';
+
+    // Si estamos ejecutando en la computadora local (localhost)
+    if (isLocal) {
+      console.log("[Entorno Local Detectado] Conectando a FastAPI local en http://localhost:8000");
+      return 'http://localhost:8000';
+    }
+
+    // Si estamos ejecutando en producción (Railway, Vercel, Netlify, GitHub Pages)
     if (window.VITE_API_URL) return window.VITE_API_URL;
     if (window.API_URL) return window.API_URL;
-    if (window.process && window.process.env && window.process.env.VITE_API_URL) {
-      return window.process.env.VITE_API_URL;
-    }
   }
   try {
     if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL) {
       return import.meta.env.VITE_API_URL;
     }
   } catch (e) {}
-  return 'http://localhost:8000';
+
+  return 'https://noaiverdad-production.up.railway.app';
 };
 
 // Estado global de la aplicación
