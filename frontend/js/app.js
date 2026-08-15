@@ -73,6 +73,14 @@ document.addEventListener("DOMContentLoaded", () => {
   initNavListeners();
   initSearchListeners();
   initFilterListeners();
+
+  // Carga automática inicial de Pichincha al abrir la aplicación web
+  setTimeout(() => {
+    const provinciaInicial = provinciasEcuador.find(p => p.id === 'pichincha');
+    if (provinciaInicial) {
+      seleccionarProvincia(provinciaInicial);
+    }
+  }, 300);
 });
 
 /**
