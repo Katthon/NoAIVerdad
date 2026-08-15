@@ -554,7 +554,7 @@ function renderizarResultados(data) {
       <div class="section-title-container" style="margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
         <div style="display: flex; align-items: center; gap: 8px;">
           <span style="display: inline-block; width: 10px; height: 10px; background-color: #4f46e5; border-radius: 50%;"></span>
-          <h3 style="font-size: 0.95rem; font-weight: 700; color: #0f172a;">Noticias en Tiempo Real (${noticias.length})</h3>
+          <h3 style="font-size: 0.95rem; font-weight: 700;">Noticias en Tiempo Real (${noticias.length})</h3>
         </div>
         <span style="font-size: 0.75rem; color: #64748b;">Prensa Ecuador</span>
       </div>
@@ -570,7 +570,7 @@ function renderizarResultados(data) {
             <span style="font-size: 0.75rem; color: #94a3b8;">${fechaFormatted}</span>
           </div>
 
-          <div class="item-title" style="color: #1e293b; font-weight: 600;">
+          <div class="item-title" style="font-weight: 600;">
             ${escaparHtml(n.titulo)}
           </div>
 
@@ -591,7 +591,7 @@ function renderizarResultados(data) {
       <div class="section-title-container" style="margin-top: 20px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
         <div style="display: flex; align-items: center; gap: 8px;">
           <span style="display: inline-block; width: 10px; height: 10px; background-color: #ef4444; border-radius: 50%;"></span>
-          <h3 style="font-size: 0.95rem; font-weight: 700; color: #0f172a;">Fact-Checking / Verificaciones (${verificaciones.length})</h3>
+          <h3 style="font-size: 0.95rem; font-weight: 700;">Fact-Checking / Verificaciones (${verificaciones.length})</h3>
         </div>
         <span style="font-size: 0.75rem; color: #64748b;">Google Fact Check</span>
       </div>
@@ -636,7 +636,7 @@ function renderizarResultados(data) {
       html += `
         <div class="item-card" style="border-left: 4px solid ${esFalso ? '#ef4444' : '#06b6d4'};">
           <div class="item-card-header">
-            <div class="item-page-name" style="font-size: 0.85rem; color: #475569;">
+            <div class="item-page-name" style="font-size: 0.85rem;">
               Afirma: <strong>${escaparHtml(v.claimant)}</strong>
             </div>
             <span class="item-reach-badge" style="background: ${esFalso ? '#fef2f2' : '#e0f2fe'}; color: ${esFalso ? '#991b1b' : '#0369a1'}; border: 1px solid ${esFalso ? '#fecaca' : '#bae6fd'}; font-weight: 600;">
@@ -644,7 +644,7 @@ function renderizarResultados(data) {
             </span>
           </div>
 
-          <div class="item-title" style="color: #0f172a; font-size: 0.925rem; margin-bottom: 8px;">
+          <div class="item-title" style="font-size: 0.925rem; margin-bottom: 8px;">
             "${escaparHtml(v.text)}"
           </div>
 
@@ -669,7 +669,7 @@ function renderizarResultados(data) {
       <div class="section-title-container" style="margin-top: 20px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
         <div style="display: flex; align-items: center; gap: 8px;">
           <span style="display: inline-block; width: 10px; height: 10px; background-color: #1d9bf0; border-radius: 50%;"></span>
-          <h3 style="font-size: 0.95rem; font-weight: 700; color: #0f172a;">Publicaciones en X / Twitter (${tweets.length})</h3>
+          <h3 style="font-size: 0.95rem; font-weight: 700;">Publicaciones en X / Twitter (${tweets.length})</h3>
         </div>
         <span style="font-size: 0.75rem; color: #1d9bf0; font-weight: 600;">Redes Sociales</span>
       </div>
@@ -683,13 +683,13 @@ function renderizarResultados(data) {
         <div class="item-card" style="border-left: 4px solid #1d9bf0;">
           <div class="item-card-header" style="margin-bottom: 8px;">
             <div style="display: flex; align-items: center; gap: 8px;">
-              <div style="font-weight: 700; font-size: 0.9rem; color: #0f172a;">${escaparHtml(user.name || 'Usuario X')}</div>
+              <div class="item-page-name" style="font-weight: 700; font-size: 0.9rem;">${escaparHtml(user.name || 'Usuario X')}</div>
               <div style="font-size: 0.8rem; color: #64748b;">${escaparHtml(user.username || '')}</div>
             </div>
             <span style="font-size: 0.75rem; color: #94a3b8;">${escaparHtml(tw.date || '')}</span>
           </div>
 
-          <div class="item-body" style="font-size: 0.875rem; color: #1e293b; line-height: 1.45; margin-bottom: 12px;">
+          <div class="item-body" style="font-size: 0.875rem; line-height: 1.45; margin-bottom: 12px;">
             ${escaparHtml(tw.text)}
           </div>
 
@@ -717,7 +717,7 @@ function renderizarResultados(data) {
       <div class="section-title-container" style="margin-top: 20px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
         <div style="display: flex; align-items: center; gap: 8px;">
           <span style="display: inline-block; width: 10px; height: 10px; background-color: #0285ff; border-radius: 50%;"></span>
-          <h3 style="font-size: 0.95rem; font-weight: 700; color: #0f172a;">Publicaciones en Bluesky (${blueskyPosts.length})</h3>
+          <h3 style="font-size: 0.95rem; font-weight: 700;">Publicaciones en Bluesky (${blueskyPosts.length})</h3>
         </div>
         <span style="font-size: 0.75rem; color: #0285ff; font-weight: 600;">🦋 Red Descentralizada</span>
       </div>
@@ -732,13 +732,13 @@ function renderizarResultados(data) {
         <div class="item-card" style="border-left: 4px solid #0285ff;">
           <div class="item-card-header" style="margin-bottom: 8px;">
             <div style="display: flex; align-items: center; gap: 8px;">
-              <div style="font-weight: 700; font-size: 0.9rem; color: #0f172a;">${escaparHtml(author.name || 'Usuario Bluesky')}</div>
+              <div class="item-page-name" style="font-weight: 700; font-size: 0.9rem;">${escaparHtml(author.name || 'Usuario Bluesky')}</div>
               <div style="font-size: 0.8rem; color: #64748b;">${escaparHtml(author.handle || '')}</div>
             </div>
             <span style="font-size: 0.75rem; color: #94a3b8;">${escaparHtml(dateFormatted)}</span>
           </div>
 
-          <div class="item-body" style="font-size: 0.875rem; color: #1e293b; line-height: 1.45; margin-bottom: 12px;">
+          <div class="item-body" style="font-size: 0.875rem; line-height: 1.45; margin-bottom: 12px;">
             ${escaparHtml(bp.text)}
           </div>
 
@@ -766,7 +766,7 @@ function renderizarResultados(data) {
       <div class="section-title-container" style="margin-top: 20px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
         <div style="display: flex; align-items: center; gap: 8px;">
           <span style="display: inline-block; width: 10px; height: 10px; background-color: #1877f2; border-radius: 50%;"></span>
-          <h3 style="font-size: 0.95rem; font-weight: 700; color: #0f172a;">Publicaciones de Meta / Facebook (${metaAds.length})</h3>
+          <h3 style="font-size: 0.95rem; font-weight: 700;">Publicaciones de Meta / Facebook (${metaAds.length})</h3>
         </div>
         <span style="font-size: 0.75rem; color: #1877f2; font-weight: 600;">📢 Meta (FB / IG)</span>
       </div>
@@ -780,13 +780,13 @@ function renderizarResultados(data) {
         <div class="item-card" style="border-left: 4px solid #1877f2;">
           <div class="item-card-header" style="margin-bottom: 8px;">
             <div style="display: flex; align-items: center; gap: 8px;">
-              <div style="font-weight: 700; font-size: 0.9rem; color: #0f172a;">${escaparHtml(pageName)}</div>
+              <div class="item-page-name" style="font-weight: 700; font-size: 0.9rem;">${escaparHtml(pageName)}</div>
               <span class="item-reach-badge" style="background: #e7f3ff; color: #1877f2; border: 1px solid #b8daff; font-weight: 600;">Monitoreo Meta</span>
             </div>
             <span style="font-size: 0.75rem; color: #94a3b8;">${escaparHtml(dateFormatted)}</span>
           </div>
 
-          <div class="item-body" style="font-size: 0.875rem; color: #1e293b; line-height: 1.45; margin-bottom: 12px;">
+          <div class="item-body" style="font-size: 0.875rem; line-height: 1.45; margin-bottom: 12px;">
             ${escaparHtml(ad.text)}
           </div>
 
