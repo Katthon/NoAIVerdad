@@ -35,7 +35,10 @@
         🔍 Seleccionar Provincia
       </button>
       <button id="nav-btn-dashboard" class="nav-tab">
-        📊 Dashboard de Tendencias
+        📊 Dashboard
+      </button>
+      <button id="nav-btn-acerca" class="nav-tab">
+        📖 Acerca de
       </button>
       <button id="btn-toggle-theme" class="theme-toggle-btn" title="Cambiar tema (Oscuro / Claro)">
         🌙 Modo Oscuro
@@ -307,6 +310,244 @@
           </div>
         </div>
       </div>
+    </div>
+  </main>
+
+  <!-- PESTAÑA 3: ACERCA DE / TUTORIAL -->
+  <main id="view-acerca" class="view-section about-view">
+    <div class="about-wrapper">
+
+      <!-- Hero de la sección -->
+      <div class="about-hero">
+        <div class="about-hero-badge">🇪🇨 Ecuador Electoral 2027</div>
+        <h2 class="about-hero-title">Acerca de NoAIVerdad</h2>
+        <p class="about-hero-desc">Una plataforma cívica de código abierto para monitorear, verificar y analizar la información electoral en Ecuador. Sin algoritmos de IA generativa. Solo fuentes reales, en tiempo real.</p>
+      </div>
+
+      <!-- Sección 1: ¿Qué es? -->
+      <div class="about-section-block">
+        <div class="about-section-header">
+          <span class="about-section-icon">🔭</span>
+          <h3>¿Qué es NoAIVerdad?</h3>
+        </div>
+        <div class="about-cards-row">
+          <div class="about-info-card">
+            <div class="about-info-icon">🎯</div>
+            <h4>Misión</h4>
+            <p>Proveer a ciudadanos, periodistas y académicos una vista centralizada de la cobertura mediática y las publicaciones en redes sociales de las <strong>24 provincias de Ecuador</strong> durante el proceso electoral 2027.</p>
+          </div>
+          <div class="about-info-card">
+            <div class="about-info-icon">🚫</div>
+            <h4>Sin IA Generativa</h4>
+            <p>El nombre lo dice todo: <em>No AI Verdad</em>. No usamos modelos de lenguaje para generar ni reescribir contenido. Todo lo que ves proviene directamente de las fuentes originales, sin modificación alguna.</p>
+          </div>
+          <div class="about-info-card">
+            <div class="about-info-icon">⚡</div>
+            <h4>Tiempo Real</h4>
+            <p>El backend consulta feeds RSS, APIs de fact-check y redes sociales en el momento en que haces clic. No hay base de datos almacenada: cada resultado es fresco y directo de la fuente.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sección 2: Tecnologías -->
+      <div class="about-section-block">
+        <div class="about-section-header">
+          <span class="about-section-icon">⚙️</span>
+          <h3>Tecnologías que usa la plataforma</h3>
+        </div>
+        <div class="about-tech-table-wrapper">
+          <table class="about-tech-table">
+            <thead>
+              <tr>
+                <th>Fuente / Tecnología</th>
+                <th>¿Qué provee?</th>
+                <th>Tipo</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>🗺️ <strong>OpenStreetMap + Leaflet.js</strong></td>
+                <td>Mapa interactivo de las 24 provincias de Ecuador</td>
+                <td><span class="tech-badge tech-open">Open Source</span></td>
+              </tr>
+              <tr>
+                <td>📰 <strong>Google News RSS</strong></td>
+                <td>Titulares de prensa ecuatoriana en tiempo real por provincia</td>
+                <td><span class="tech-badge tech-api">RSS Feed</span></td>
+              </tr>
+              <tr>
+                <td>⚠️ <strong>Google Fact Check Tools API</strong></td>
+                <td>Verificaciones de desinformación con calificación de veracidad</td>
+                <td><span class="tech-badge tech-api">API Oficial</span></td>
+              </tr>
+              <tr>
+                <td>🐦 <strong>X (Twitter) / ntscraper</strong></td>
+                <td>Publicaciones recientes con hashtags electorales</td>
+                <td><span class="tech-badge tech-social">Red Social</span></td>
+              </tr>
+              <tr>
+                <td>🦋 <strong>Bluesky AT Protocol</strong></td>
+                <td>Posts de la red social descentralizada Bluesky</td>
+                <td><span class="tech-badge tech-social">Red Social</span></td>
+              </tr>
+              <tr>
+                <td>📢 <strong>Meta Ad Library</strong></td>
+                <td>Publicidad política activa en Facebook e Instagram</td>
+                <td><span class="tech-badge tech-api">API Oficial</span></td>
+              </tr>
+              <tr>
+                <td>🐍 <strong>FastAPI + Python</strong></td>
+                <td>Backend que agrega y filtra todas las fuentes en tiempo real</td>
+                <td><span class="tech-badge tech-open">Open Source</span></td>
+              </tr>
+              <tr>
+                <td>📊 <strong>Chart.js</strong></td>
+                <td>Gráficos interactivos del Dashboard de Tendencias</td>
+                <td><span class="tech-badge tech-open">Open Source</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Sección 3: Veracidad de fuentes -->
+      <div class="about-section-block">
+        <div class="about-section-header">
+          <span class="about-section-icon">🔍</span>
+          <h3>Veracidad y confiabilidad de las fuentes</h3>
+        </div>
+        <p class="about-section-intro">No todas las fuentes tienen el mismo nivel de confiabilidad. Aquí explicamos qué significa cada una y sus limitaciones para que puedas interpretar los resultados correctamente.</p>
+        <div class="about-trust-grid">
+          <div class="about-trust-card trust-high">
+            <div class="trust-level-bar"></div>
+            <div class="trust-card-body">
+              <div class="trust-icon">✅</div>
+              <h4>Google Fact Check API</h4>
+              <div class="trust-score">Confiabilidad: <strong>Alta</strong></div>
+              <p>Las verificaciones provienen de organizaciones periodísticas acreditadas (AFP Factual, Chequeado, El Comercio Fact-Check, etc.) que aplican metodologías de verificación periodística. Incluyen calificación explícita: <em>"Falso"</em>, <em>"Engañoso"</em> o <em>"Verdadero"</em>.</p>
+              <div class="trust-limit">⚠️ Límite: La cobertura sobre Ecuador puede ser escasa en temas locales muy específicos.</div>
+            </div>
+          </div>
+          <div class="about-trust-card trust-medium">
+            <div class="trust-level-bar"></div>
+            <div class="trust-card-body">
+              <div class="trust-icon">📰</div>
+              <h4>Google News RSS (Prensa)</h4>
+              <div class="trust-score">Confiabilidad: <strong>Media-Alta</strong></div>
+              <p>Agrega noticias de medios reconocidos: El Comercio, El Universo, Primicias, GK, Teleamazonas. El contenido proviene directamente de los medios sin modificación por parte de esta plataforma.</p>
+              <div class="trust-limit">⚠️ Límite: Google News puede incluir medios de menor credibilidad editorial. Verifica siempre la fuente original.</div>
+            </div>
+          </div>
+          <div class="about-trust-card trust-social">
+            <div class="trust-level-bar"></div>
+            <div class="trust-card-body">
+              <div class="trust-icon">🐦 🦋</div>
+              <h4>X (Twitter) y Bluesky</h4>
+              <div class="trust-score">Confiabilidad: <strong>Baja-Media</strong></div>
+              <p>Las redes sociales muestran opinión pública no filtrada. Son útiles para detectar tendencias y narrativas en circulación, pero cualquier publicación puede contener información incorrecta o manipuladora.</p>
+              <div class="trust-limit">⚠️ Límite: No confundir popularidad con veracidad. Una publicación viral no significa que sea verdadera.</div>
+            </div>
+          </div>
+          <div class="about-trust-card trust-ads">
+            <div class="trust-level-bar"></div>
+            <div class="trust-card-body">
+              <div class="trust-icon">📢</div>
+              <h4>Meta Ad Library</h4>
+              <div class="trust-score">Confiabilidad: <strong>Referencial</strong></div>
+              <p>Muestra publicidad política pagada en Facebook e Instagram. Es útil para detectar campañas electorales activas y monitorear quién las financia, pero el contenido de los anuncios es por definición tendencioso.</p>
+              <div class="trust-limit">⚠️ Límite: Son anuncios pagados con agenda política. Analízalos críticamente.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sección 4: Tutorial de filtros electorales -->
+      <div class="about-section-block">
+        <div class="about-section-header">
+          <span class="about-section-icon">🎓</span>
+          <h3>Cómo usar los filtros electorales — Tutorial</h3>
+        </div>
+        <p class="about-section-intro">Guía paso a paso para sacar el máximo provecho a la plataforma durante el proceso electoral 2027.</p>
+
+        <div class="tutorial-steps">
+
+          <div class="tutorial-step">
+            <div class="tutorial-step-num">1</div>
+            <div class="tutorial-step-body">
+              <h4>🗺️ Selecciona una provincia en el mapa</h4>
+              <p>Haz clic sobre cualquier marcador circular en el mapa interactivo, o usa el buscador desplegable en la parte superior para seleccionar directamente una de las 24 provincias. El mapa está restringido a Ecuador — no podrás desplazarte hacia otros países.</p>
+              <div class="tutorial-tip">💡 <strong>Tip:</strong> Usa la rueda del ratón para hacer zoom y ver mejor las provincias de la Sierra central como Tungurahua, Cotopaxi o Chimborazo, que están agrupadas en el centro del país.</div>
+            </div>
+          </div>
+
+          <div class="tutorial-step">
+            <div class="tutorial-step-num">2</div>
+            <div class="tutorial-step-body">
+              <h4>📂 Filtra por tipo de fuente (Sección)</h4>
+              <p>Una vez seleccionada la provincia, el panel lateral muestra los resultados. Usa el menú <strong>"Sección"</strong> para elegir qué tipo de información quieres ver:</p>
+              <ul class="tutorial-list">
+                <li><span class="tut-badge">📰 Noticias de Prensa</span> — Titulares periodísticos de medios ecuatorianos sobre esa provincia, desde Google News RSS.</li>
+                <li><span class="tut-badge">⚠️ Fact-Check</span> — Verificaciones de desinformación con calificación de veracidad. Ideal para detectar noticias falsas en circulación.</li>
+                <li><span class="tut-badge">🐦 X (Twitter)</span> — Publicaciones recientes con hashtags y términos relacionados a la provincia y las elecciones.</li>
+                <li><span class="tut-badge">🦋 Bluesky</span> — Posts de la red social descentralizada Bluesky, alternativa a Twitter.</li>
+                <li><span class="tut-badge">📢 Meta (FB / IG)</span> — Publicidad política activa en Facebook e Instagram relacionada a Ecuador.</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="tutorial-step">
+            <div class="tutorial-step-num">3</div>
+            <div class="tutorial-step-body">
+              <h4>📅 Filtra por año electoral</h4>
+              <p>Usa el filtro <strong>"Año"</strong> para acotar la búsqueda a un período específico del ciclo electoral:</p>
+              <ul class="tutorial-list">
+                <li><span class="tut-badge">Todos los años</span> — Sin restricción de fecha, muestra los más recientes disponibles.</li>
+                <li><span class="tut-badge">2026</span> — Período de precampaña previo a las elecciones generales de febrero 2027.</li>
+                <li><span class="tut-badge">2025</span> — Año de arranque de campaña y resoluciones del CNE.</li>
+                <li><span class="tut-badge">2024</span> — Período de elecciones seccionales y contexto postelectoral.</li>
+              </ul>
+              <div class="tutorial-tip">💡 <strong>Tip:</strong> El filtro de año aplica principalmente a prensa. Redes sociales muestran siempre el contenido más reciente disponible en sus APIs.</div>
+            </div>
+          </div>
+
+          <div class="tutorial-step">
+            <div class="tutorial-step-num">4</div>
+            <div class="tutorial-step-body">
+              <h4>🔍 Busca palabras clave electorales en el Dashboard</h4>
+              <p>Ve a <strong>📊 Dashboard</strong> desde la barra superior. El buscador de palabras clave permite analizar cualquier término electoral en todas las fuentes a la vez:</p>
+              <ul class="tutorial-list">
+                <li>Nombre de un <strong>candidato</strong>: <em>Noboa</em>, <em>Luisa</em>, <em>Arauz</em></li>
+                <li>Una <strong>institución</strong>: <em>CNE</em>, <em>Asamblea</em>, <em>Fiscalía</em></li>
+                <li>Un <strong>tema electoral</strong>: <em>encuestas</em>, <em>debate</em>, <em>voto nulo</em>, <em>seguridad</em></li>
+              </ul>
+              <div class="tutorial-tip">💡 <strong>Tip:</strong> Las píldoras 🔥 #Hashtag se generan automáticamente del análisis de feeds en tiempo real. Haz clic en cualquiera para buscar ese término de inmediato.</div>
+            </div>
+          </div>
+
+          <div class="tutorial-step">
+            <div class="tutorial-step-num">5</div>
+            <div class="tutorial-step-body">
+              <h4>⚠️ Cómo interpretar los Fact-Checks</h4>
+              <p>Al seleccionar la sección <strong>"Posibles Falsas / Fact-Check"</strong>, cada resultado incluye:</p>
+              <ul class="tutorial-list">
+                <li>El <strong>titular original</strong> de la afirmación que fue verificada.</li>
+                <li>El <strong>medio verificador</strong> (AFP Factual, Chequeado, El Comercio, etc.).</li>
+                <li>La <strong>calificación</strong>: Falso, Engañoso, Parcialmente Verdadero o Verdadero.</li>
+                <li>Un enlace al artículo completo con el análisis detallado del verificador.</li>
+              </ul>
+              <div class="tutorial-tip">⚠️ <strong>Importante:</strong> Aparecer en esta sección no significa automáticamente que algo es falso. Significa que fue sometido a verificación periodística. Lee siempre el artículo completo antes de sacar conclusiones.</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Footer informativo -->
+      <div class="about-footer">
+        <p>🇪🇨 <strong>NoAIVerdad</strong> es una herramienta de monitoreo cívico independiente. No está afiliada al CNE, a ningún partido político ni candidato.</p>
+        <p>Los datos mostrados provienen de fuentes públicas y son responsabilidad de sus respectivos autores originales. Esta plataforma no genera, modifica ni valida el contenido mostrado.</p>
+      </div>
+
     </div>
   </main>
 

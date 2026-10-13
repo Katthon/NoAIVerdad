@@ -117,11 +117,20 @@ function aplicarTema(theme) {
 function initMap() {
   console.log("Inicializando mapa de Ecuador con marcadores tipo province-dot...");
 
+  // Bounding box que encierra todo Ecuador (incluyendo Galápagos al oeste)
+  // SW: (-5.1, -92.1)  NE: (1.7, -75.2)
+  const ecuadorBounds = L.latLngBounds(
+    L.latLng(-5.1, -92.1),
+    L.latLng(1.7, -75.2)
+  );
+
   // Configurar mapa centrado en Ecuador (-1.8312, -78.1834) zoom nivel 7
   state.map = L.map("map", {
     center: [-1.8312, -78.1834],
     zoom: 7,
-    zoomControl: true
+    minZoom: 6,              // No se puede alejar más allá de donde Ecuador llena la vista
+    maxBounds: ecuadorBounds,
+    maxBoundsViscosity: 1.0  // El mapa rebota al llegar al borde — no se puede salir
   });
 
   // Capa base de OpenStreetMap (estándar y gratuita)
@@ -239,10 +248,22 @@ function alternarHero() {
  */
 function initNavListeners() {
   const btnDashboard = document.getElementById("nav-btn-dashboard");
+  const btnAcerca = document.getElementById("nav-btn-acerca");
   const btnReopenHero = document.getElementById("btn-reopen-hero");
   const viewMapa = document.getElementById("view-mapa");
   const viewDashboard = document.getElementById("view-dashboard");
+  const viewAcerca = document.getElementById("view-acerca");
   const brandLogo = document.querySelector(".brand-container");
+
+  // Helper: activar una pestaña y desactivar las demás
+  const activarVista = (vistaActiva) => {
+    [viewMapa, viewDashboard, viewAcerca].forEach(v => v?.classList.remove("active"));
+    [btnDashboard, btnAcerca].forEach(b => b?.classList.remove("active"));
+    vistaActiva?.classList.add("active");
+    if (vistaActiva === viewMapa) {
+      setTimeout(() => { if (state.map) state.map.invalidateSize(); }, 400);
+    }
+  };
 
   if (brandLogo) {
     brandLogo.addEventListener("click", alternarHero);
@@ -255,17 +276,28 @@ function initNavListeners() {
   if (btnDashboard) {
     btnDashboard.addEventListener("click", () => {
       const estaActivo = viewDashboard?.classList.contains("active");
-
       if (estaActivo) {
+        activarVista(viewMapa);
         expandirHero();
       } else {
         btnDashboard.classList.add("active");
-        viewDashboard?.classList.add("active");
-        viewMapa?.classList.remove("active");
-
+        activarVista(viewDashboard);
         if (!state.chartsInicializados) {
           inicializarChartsDashboard();
         }
+      }
+    });
+  }
+
+  if (btnAcerca) {
+    btnAcerca.addEventListener("click", () => {
+      const estaActivo = viewAcerca?.classList.contains("active");
+      if (estaActivo) {
+        activarVista(viewMapa);
+        expandirHero();
+      } else {
+        btnAcerca.classList.add("active");
+        activarVista(viewAcerca);
       }
     });
   }
