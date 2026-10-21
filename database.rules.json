@@ -1,0 +1,42 @@
+{
+  "rules": {
+    "config": {
+      ".read": false,
+      ".write": false
+    },
+    "noticias": {
+      ".read": "auth != null",
+      ".write": false,
+      "$provincia": {
+        ".indexOn": ["fecha", "anio"]
+      }
+    },
+    "dashboard": {
+      ".read": "auth != null",
+      ".write": false,
+      "stats": {
+        ".read": "auth != null"
+      },
+      "keywords": {
+        ".read": "auth != null"
+      }
+    },
+    "usuarios": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+        ".validate": "newData.hasChildren(['email'])",
+        "email": {
+          ".validate": "newData.isString()"
+        }
+      }
+    },
+    "reportes_ciudadanos": {
+      ".read": "auth != null",
+      "$reporteId": {
+        ".write": "auth != null",
+        ".validate": "newData.hasChildren(['provincia', 'titulo', 'autor_uid', 'timestamp']) && newData.child('autor_uid').val() === auth.uid"
+      }
+    }
+  }
+}

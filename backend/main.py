@@ -1,4 +1,6 @@
 import os
+import asyncio
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Query, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
@@ -7,12 +9,49 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from meta_service import UnifiedFeedService
+import firebase_store
+from news_collector import refresh_all
+
+_collector_task = None
+
+
+async def _scheduled_collection_loop():
+    interval = max(900, int(os.getenv("NEWS_REFRESH_INTERVAL_SECONDS", "21600")))
+    print(f"[Firebase collector] Recolección de noticias cada {interval} segundos.", flush=True)
+    while True:
+        try:
+            result = await asyncio.to_thread(refresh_all, unified_service)
+            print(f"[Firebase collector] Ciclo terminado: {result}", flush=True)
+        except Exception:
+            import logging
+            logging.getLogger(__name__).exception("Falló el ciclo del colector programado.")
+        await asyncio.sleep(interval)
+
+
+@asynccontextmanager
+async def lifespan(_app):
+    global _collector_task
+    if firebase_store.initialize():
+        _collector_task = asyncio.create_task(_scheduled_collection_loop())
+    else:
+        print("[Firebase collector] Sin credenciales Admin; la recolección programada está desactivada.", flush=True)
+    try:
+        yield
+    finally:
+        if _collector_task:
+            _collector_task.cancel()
+            try:
+                await _collector_task
+            except asyncio.CancelledError:
+                pass
+            _collector_task = None
 
 # Inicializar aplicación FastAPI
 app = FastAPI(
     title="NoAIVerdad - Backend Unificado (Noticias + Fact-Checking + X Scraper)",
     description="API en tiempo real para el monitoreo cívico de desinformación electoral en Ecuador por provincia, integrando GNews/RSS, Google Fact Check y X (Twitter).",
-    version="4.0.0"
+    version="4.1.0",
+    lifespan=lifespan
 )
 
 # Configuración de CORS middleware
@@ -37,7 +76,8 @@ def read_root():
         "servicios": {
             "gnews_rss": True,
             "google_fact_check": bool(unified_service.fact_check_api_key),
-            "x_ntscraper": unified_service.scraper is not None
+            "x_api": bool(unified_service.x_api_enabled and unified_service.x_api_bearer_token),
+            "x_ntscraper_fallback": False
         },
         "documentacion": "/docs"
     }
@@ -76,15 +116,10 @@ def obtener_noticias_y_tweets_por_provincia(
         return feed
 
     except Exception as e:
-        return {
-            "provincia": provincia_limpia,
-            "tiempo_real": [],
-            "verificaciones": [],
-            "tweets_recientes": [],
-            "bluesky_posts": [],
-            "error": True,
-            "mensaje": f"Error obteniendo feed para {provincia_limpia}: {str(e)}"
-        }
+        raise HTTPException(
+            status_code=502,
+            detail=f"Error obteniendo feed para {provincia_limpia}: {str(e)}"
+        ) from e
 
 
 from typing import Optional, List, Dict, Any
@@ -92,87 +127,45 @@ from datetime import datetime
 
 @app.get("/api/dashboard/stats")
 def obtener_estadisticas_dashboard(provincia: Optional[str] = Query(None)):
-    """
-    Endpoint para el Dashboard de Estadísticas: `GET /api/dashboard/stats`.
-    Devuelve datos métricos, porcentajes consolidados y un resumen en tiempo real
-    filtrado por provincia o a nivel nacional (Ecuador).
-    """
+    """Return live collector counts; no synthetic national totals or alert rates."""
     provincia_limpia = provincia.strip() if provincia else None
-
-    # Si se solicitó una provincia específica (ej: Pichincha, Guayas, Manabí)
-    if provincia_limpia and provincia_limpia.lower() not in ["todas", "ecuador"]:
-        # Obtener feed real para calcular métricas dinámicas
+    if provincia_limpia and provincia_limpia.lower() not in {"todas", "ecuador"}:
         feed = unified_service.obtener_feed_completo(provincia_limpia)
-        c_noticias = len(feed.get("tiempo_real", []))
-        c_facts = len(feed.get("verificaciones", []))
-        c_tweets = len(feed.get("tweets_recientes", []))
-        c_bluesky = len(feed.get("bluesky_posts", []))
-        c_meta = len(feed.get("meta_ads", []))
-        total = c_noticias + c_facts + c_tweets + c_bluesky + c_meta
-
-        pct_advertencias = 25 if c_facts > 0 else 10
-        summary_text = (
-            f"En la provincia de <strong>{provincia_limpia}</strong> se registraron un total de "
-            f"<span class='summary-highlight'>{total} publicaciones activas</span> en tiempo real. "
-            f"La mayor concentración de información proviene de <strong>Noticias de Prensa ({c_noticias})</strong> "
-            f"y <strong>Publicaciones en Meta ({c_meta})</strong>. "
-            f"Se detectaron <strong>{c_facts} verificaciones de Fact-Checking</strong> con un nivel de alerta del {pct_advertencias}%."
-        )
-
+        counts = {
+            "prensa_tiempo_real": len(feed.get("tiempo_real", [])),
+            "fact_checks": len(feed.get("verificaciones", [])),
+            "redes_sociales_x": 0,
+            "bluesky_feed": len(feed.get("bluesky_posts", [])),
+            "meta_ads": len(feed.get("meta_ads", [])),
+        }
+        total = sum(counts.values())
         return {
             "provincia": provincia_limpia,
             "total_publicaciones": total,
-            "distribucion_fuentes": {
-                "prensa_tiempo_real": c_noticias,
-                "fact_checks": c_facts,
-                "redes_sociales_x": c_tweets,
-                "bluesky_feed": c_bluesky,
-                "meta_ads": c_meta
-            },
-            "top_provincias_cobertura": [
+            "distribucion_fuentes": counts,
+            "top_provincias_cobertura": ([
                 {"provincia": provincia_limpia, "publicaciones": total, "porcentaje": 100.0}
-            ],
-            "porcentaje_advertencias": {
-                "informacion_general": 100 - pct_advertencias,
-                "con_advertencia_google": pct_advertencias
-            },
-            "resumen_general": summary_text,
-            "timestamp": datetime.now().isoformat()
+            ] if total else []),
+            "resumen_general": (
+                f"Se obtuvieron {total} registros de las fuentes consultadas para {provincia_limpia}. "
+                "El recuento no determina la veracidad de las publicaciones."
+            ),
+            "actualizado_en": datetime.now().isoformat(),
         }
 
-    # Resumen General Nacional (Todas las Provincias de Ecuador)
-    summary_nacional = (
-        "El monitoreo electoral en tiempo real a nivel nacional abarca las <strong>24 provincias de Ecuador</strong>. "
-        "Las provincias con mayor volumen de publicaciones y cobertura periodística son "
-        "<span class='summary-highlight'>Pichincha (28.4%)</span>, <span class='summary-highlight'>Guayas (25.6%)</span> y "
-        "<span class='summary-highlight'>Manabí (15.0%)</span>. "
-        "Se mantiene un monitoreo activo continuo sobre 5 fuentes independientes (Prensa, Fact-Check, X, Bluesky y Meta)."
-    )
-
+    stored = firebase_store.get("dashboard/stats")
+    if isinstance(stored, dict):
+        return stored
     return {
         "provincia": "Ecuador (Todas)",
-        "total_publicaciones": 520,
+        "total_publicaciones": 0,
         "distribucion_fuentes": {
-            "prensa_tiempo_real": 35,
-            "fact_checks": 20,
-            "redes_sociales_x": 20,
-            "bluesky_feed": 12,
-            "meta_ads": 13
+            "prensa_tiempo_real": 0, "fact_checks": 0, "redes_sociales_x": 0,
+            "bluesky_feed": 0, "meta_ads": 0,
         },
-        "top_provincias_cobertura": [
-            {"provincia": "Pichincha", "publicaciones": 142, "porcentaje": 28.4},
-            {"provincia": "Guayas", "publicaciones": 128, "porcentaje": 25.6},
-            {"provincia": "Manabí", "publicaciones": 75, "porcentaje": 15.0},
-            {"provincia": "Azuay", "publicaciones": 62, "porcentaje": 12.4},
-            {"provincia": "El Oro", "publicaciones": 48, "porcentaje": 9.6},
-            {"provincia": "Otras Provincias", "publicaciones": 65, "porcentaje": 9.0}
-        ],
-        "porcentaje_advertencias": {
-            "informacion_general": 82,
-            "con_advertencia_google": 18
-        },
-        "resumen_general": summary_nacional,
-        "timestamp": datetime.now().isoformat()
+        "top_provincias_cobertura": [],
+        "resumen_general": "Aún no hay estadísticas guardadas por el colector.",
+        "actualizado_en": None,
     }
 
 
@@ -206,14 +199,7 @@ def extraer_palabras_tendencia_reales() -> List[Dict[str, Any]]:
         conteo = Counter(palabras_filtradas).most_common(8)
 
         if not conteo:
-            return [
-                {"word": "CNE", "count": 12, "category": "Institución Electoral"},
-                {"word": "Noboa", "count": 10, "category": "Candidato"},
-                {"word": "Luisa", "count": 8, "category": "Candidata"},
-                {"word": "Seguridad", "count": 7, "category": "Propuesta"},
-                {"word": "Encuestas", "count": 6, "category": "Tendencia"},
-                {"word": "Asamblea", "count": 5, "category": "Legislativo"}
-            ]
+            return []
 
         res = []
         for word, count in conteo:
@@ -232,11 +218,7 @@ def extraer_palabras_tendencia_reales() -> List[Dict[str, Any]]:
 
     except Exception as e:
         print(f"Error generando tendencias reales: {e}")
-        return [
-            {"word": "CNE", "count": 10, "category": "Institución"},
-            {"word": "Noboa", "count": 8, "category": "Candidato"},
-            {"word": "Luisa", "count": 7, "category": "Candidata"}
-        ]
+        return []
 
 
 @app.get("/api/dashboard/keywords")
@@ -270,8 +252,8 @@ def obtener_analisis_palabras_clave(q: Optional[str] = Query(None), provincia: O
 
     # Escanear noticias de prensa devueltas para la búsqueda específica
     for n in noticias_especificas:
-        txt = (n.get("titulo", "") + " " + n.get("fuente", "")).lower()
-        if word_lower in txt or len(noticias_especificas) > 0:
+        txt = (str(n.get("titulo", "")) + " " + str(n.get("fuente", ""))).lower()
+        if word_lower in txt:
             c_prensa += 1
             coincidencias.append({
                 "titulo": n.get("titulo"),
@@ -281,22 +263,24 @@ def obtener_analisis_palabras_clave(q: Optional[str] = Query(None), provincia: O
 
     # Escanear verificaciones de Fact Check para la búsqueda específica
     for f in facts_especificos:
+        claim_text = str(f.get("text", ""))
+        if word_lower not in claim_text.lower():
+            continue
         c_fact += 1
         coincidencias.append({
-            "titulo": "Fact-Check: " + f.get("claim", ""),
+            "titulo": "Fact-Check: " + claim_text,
             "fuente": f.get("publisher", "Google FactCheck"),
             "link": f.get("url")
         })
 
-    # Si no hubo coincidencia ni noticias (ej. Esternocleidomastoideo)
-    if not coincidencias and not noticias_especificas:
+    # No contar los resultados devueltos por una API si no contienen el término buscado.
+    if not coincidencias:
         return {
             "trending_keywords": trending_list,
             "analisis": {
                 "palabra": word_query,
                 "menciones_totales": 0,
                 "categoria": "Sin Menciones Detectadas",
-                "nivel_alerta": 0,
                 "distribucion": {"prensa": 0, "fact_check": 0, "x_twitter": 0, "bluesky": 0, "meta": 0},
                 "resumen_analisis": f"No se encontraron menciones en tiempo real para el término '<strong>{word_query}</strong>' en la cobertura informativa.",
                 "titulares_relacionados": []
@@ -315,7 +299,6 @@ def obtener_analisis_palabras_clave(q: Optional[str] = Query(None), provincia: O
             "palabra": word_query,
             "menciones_totales": total_menciones,
             "categoria": cat,
-            "nivel_alerta": 18 if c_fact > 0 else 5,
             "distribucion": {
                 "prensa": c_prensa,
                 "fact_check": c_fact,

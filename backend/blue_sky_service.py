@@ -1,9 +1,9 @@
-import os
 import requests
 import logging
 import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor
 from typing import List, Dict, Any
+import firebase_store
 
 # Configurar logger
 logging.basicConfig(level=logging.INFO)
@@ -27,8 +27,11 @@ class UnifiedFeedService:
     FACT_CHECK_URL = "https://factchecktools.googleapis.com/v1alpha1/claims:search"
 
     def __init__(self):
-        self.gnews_api_key = os.getenv("GNEWS_API_KEY", "").strip()
-        self.fact_check_api_key = os.getenv("GOOGLE_FACT_CHECK_API_KEY", "").strip()
+        keys = firebase_store.get_api_keys()
+        self.gnews_api_key = keys.get("GNEWS_API_KEY", "")
+        self.fact_check_api_key = keys.get("GOOGLE_FACT_CHECK_API_KEY", "")
+        self.bluesky_handle = keys.get("BLUESKY_HANDLE", "")
+        self.bluesky_app_password = keys.get("BLUESKY_APP_PASSWORD", "")
         self.scraper = None
         self.cache_feed = {}
 
@@ -179,8 +182,8 @@ class UnifiedFeedService:
     # =========================================================================
     def obtener_posts_bluesky(self, provincia: str) -> List[Dict[str, Any]]:
         posts_bluesky = []
-        handle = os.getenv("BLUESKY_HANDLE", "").strip()
-        app_password = os.getenv("BLUESKY_PASSWORD", "").strip()
+        handle = self.bluesky_handle
+        app_password = self.bluesky_app_password
 
         if not handle or not app_password:
             return []

@@ -3,36 +3,15 @@
  * Plataforma Cívica para Monitoreo Electoral en Ecuador.
  */
 
-// Obtener la URL del backend dinámicamente según el entorno de ejecución (localhost vs producción Railway)
-const obtenerBackendUrl = () => {
-  if (typeof window !== 'undefined') {
-    const hostname = window.location.hostname;
-    const isLocal = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '';
-
-    // Si estamos ejecutando en la computadora local (localhost o abriendo el HTML directo)
-    if (isLocal) {
-      console.log("[Entorno Local Detectado] Conectando a FastAPI local en http://localhost:8000");
-      return 'http://localhost:8000';
-    }
-
-    // Si estamos ejecutando en producción (Railway, Vercel, Netlify, GitHub Pages)
-    if (window.VITE_API_URL) return window.VITE_API_URL;
-    if (window.API_URL) return window.API_URL;
-  }
-
-  return 'https://noaiverdad-production.up.railway.app';
-};
-
 // Estado global de la aplicación
 const state = {
   map: null,
   marcadores: {},
   provinciaSeleccionada: null,
-  backendUrl: obtenerBackendUrl(),
   chartsInicializados: false,
   charts: {},
-  datosActuales: null,       // Guardar respuesta raw del backend
-  filtroSeccion: "noticias", // 'noticias' | 'verificaciones' | 'tweets' | 'bluesky' | 'meta_ads'
+  datosActuales: null,       // Último feed leído desde Firebase
+  filtroSeccion: "noticias", // 'noticias' | 'verificaciones' | 'tweets' | 'bluesky'
   filtroAnio: "todos",        // 'todos' | '2026' | '2025' | '2024' | '2023'
   feedCache: {}              // Cache client-side: feedCache[provincia][seccion]
 };
@@ -74,6 +53,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initNavListeners();
   initSearchListeners();
   initFilterListeners();
+  // firebase-sync.js inicializa Auth al cargar; no registrar los listeners dos veces.
 });
 
 /**
@@ -209,8 +189,13 @@ function expandirHero() {
 
   // Volver al mapa si estábamos en el dashboard
   document.getElementById("view-dashboard")?.classList.remove("active");
+  if (document.getElementById("view-dashboard")) document.getElementById("view-dashboard").hidden = true;
+  document.getElementById("view-acerca")?.classList.remove("active");
+  if (document.getElementById("view-acerca")) document.getElementById("view-acerca").hidden = true;
   document.getElementById("nav-btn-dashboard")?.classList.remove("active");
-  document.getElementById("view-mapa")?.classList.add("active");
+  document.getElementById("nav-btn-acerca")?.classList.remove("active");
+  const viewMapa = document.getElementById("view-mapa");
+  if (viewMapa) { viewMapa.hidden = false; viewMapa.classList.add("active"); }
 
   // Recalcular dimensiones del mapa Leaflet
   setTimeout(() => {
@@ -257,9 +242,13 @@ function initNavListeners() {
 
   // Helper: activar una pestaña y desactivar las demás
   const activarVista = (vistaActiva) => {
-    [viewMapa, viewDashboard, viewAcerca].forEach(v => v?.classList.remove("active"));
+    [viewMapa, viewDashboard, viewAcerca].forEach(v => {
+      if (!v) return;
+      const activa = v === vistaActiva;
+      v.hidden = !activa;
+      v.classList.toggle("active", activa);
+    });
     [btnDashboard, btnAcerca].forEach(b => b?.classList.remove("active"));
-    vistaActiva?.classList.add("active");
     if (vistaActiva === viewMapa) {
       setTimeout(() => { if (state.map) state.map.invalidateSize(); }, 400);
     }
@@ -320,8 +309,13 @@ function initSearchListeners() {
     const provinciaObj = provinciasEcuador.find(p => p.id === selectedId);
     if (provinciaObj) {
       document.getElementById("view-dashboard")?.classList.remove("active");
+      if (document.getElementById("view-dashboard")) document.getElementById("view-dashboard").hidden = true;
+      document.getElementById("view-acerca")?.classList.remove("active");
+      if (document.getElementById("view-acerca")) document.getElementById("view-acerca").hidden = true;
       document.getElementById("nav-btn-dashboard")?.classList.remove("active");
-      document.getElementById("view-mapa")?.classList.add("active");
+      document.getElementById("nav-btn-acerca")?.classList.remove("active");
+      const viewMapa = document.getElementById("view-mapa");
+      if (viewMapa) { viewMapa.hidden = false; viewMapa.classList.add("active"); }
 
       setTimeout(() => {
         if (state.map) state.map.invalidateSize();
@@ -352,7 +346,7 @@ function initFilterListeners() {
     filterSection.addEventListener("change", (e) => {
       state.filtroSeccion = e.target.value;
       if (state.provinciaSeleccionada) {
-        cargarNoticiasBackend(state.provinciaSeleccionada, state.filtroSeccion);
+        cargarNoticiasAlmacenadas(state.provinciaSeleccionada, state.filtroSeccion);
       }
     });
   }
@@ -368,10 +362,20 @@ function initFilterListeners() {
 }
 
 /**
- * Lógica al seleccionar una provincia (flyTo a las coordenadas centrales y carga del backend)
+ * Lógica al seleccionar una provincia (flyTo y lectura del feed almacenado en Firebase)
  */
 function seleccionarProvincia(provincia) {
   console.log(`Cargando noticias de ${provincia.nombre}...`);
+
+  // Elegir una provincia siempre vuelve al mapa y desactiva las demás vistas.
+  document.getElementById("view-dashboard")?.classList.remove("active");
+  if (document.getElementById("view-dashboard")) document.getElementById("view-dashboard").hidden = true;
+  document.getElementById("nav-btn-dashboard")?.classList.remove("active");
+  document.getElementById("view-acerca")?.classList.remove("active");
+  if (document.getElementById("view-acerca")) document.getElementById("view-acerca").hidden = true;
+  document.getElementById("nav-btn-acerca")?.classList.remove("active");
+  const viewMapa = document.getElementById("view-mapa");
+  if (viewMapa) { viewMapa.hidden = false; viewMapa.classList.add("active"); }
 
   // Sincronizar el select del Hero
   const selectProvincia = document.getElementById("hero-province-select");
@@ -398,17 +402,20 @@ function seleccionarProvincia(provincia) {
 
   state.provinciaSeleccionada = provincia.nombre;
 
-  // Zoom suave (flyTo) a la capital/centroide
-  state.map.flyTo([provincia.lat, provincia.lng], 9, {
-    animate: true,
-    duration: 1.2
-  });
+  // Recalcular el mapa después de reactivar su vista (por ejemplo, desde Acerca de).
+  setTimeout(() => {
+    if (!state.map) return;
+    state.map.invalidateSize();
+    state.map.flyTo([provincia.lat, provincia.lng], 9, {
+      animate: true,
+      duration: 1.2
+    });
+  }, 100);
 
   // Actualizar la interfaz del panel lateral
   actualizarSidebar(provincia.nombre);
 
-  // Petición rápida al backend por la sección seleccionada (< 1s)
-  cargarNoticiasBackend(provincia.nombre, state.filtroSeccion);
+  cargarNoticiasAlmacenadas(provincia.nombre, state.filtroSeccion);
 }
 
 /**
@@ -436,10 +443,8 @@ function obtenerNombreSeccion(seccion) {
   return nombres[seccion] || seccion;
 }
 
-/**
- * Petición fetch on-demand al backend para obtener noticias por sección (< 1s)
- */
-async function cargarNoticiasBackend(provincia, seccion = state.filtroSeccion) {
+/** Lee únicamente las noticias que el colector del backend ya guardó en Firebase. */
+async function cargarNoticiasAlmacenadas(provincia, seccion = state.filtroSeccion) {
   const sidebarContent = document.getElementById("sidebar-content");
   state.filtroSeccion = seccion;
 
@@ -448,14 +453,14 @@ async function cargarNoticiasBackend(provincia, seccion = state.filtroSeccion) {
     state.feedCache[provincia] = {};
   }
 
-  // Si la sección ya fue descargada con datos válidos para esta provincia, cargar de inmediato (0ms)
+  // Si la sección ya fue descargada en memoria, cargar de inmediato
   const cached = state.feedCache[provincia]?.[seccion];
   if (cached && (
       (cached.tiempo_real && cached.tiempo_real.length > 0) ||
       (cached.verificaciones && cached.verificaciones.length > 0) ||
       (cached.tweets_recientes && cached.tweets_recientes.length > 0) ||
       (cached.bluesky_posts && cached.bluesky_posts.length > 0) ||
-      (cached.meta_ads && cached.meta_ads.length > 0)
+      (cached.bluesky_posts_nacionales && cached.bluesky_posts_nacionales.length > 0)
   )) {
     console.log(`[Cache Hit] Carga instantánea de '${seccion}' para ${provincia}`);
     state.datosActuales = cached;
@@ -467,35 +472,41 @@ async function cargarNoticiasBackend(provincia, seccion = state.filtroSeccion) {
     <div class="state-box">
       <div class="spinner"></div>
       <div class="state-title">Cargando ${escaparHtml(obtenerNombreSeccion(seccion))}...</div>
-      <div class="state-desc">Consultando la sección <strong>${escaparHtml(obtenerNombreSeccion(seccion))}</strong> en <strong>${provincia}</strong>.</div>
+      <div class="state-desc">Leyendo los datos guardados de <strong>${escaparHtml(provincia)}</strong> en Firebase.</div>
     </div>
   `;
 
-  try {
-    const endpoint = `${state.backendUrl}/api/noticias?provincia=${encodeURIComponent(provincia)}&seccion=${encodeURIComponent(seccion)}`;
-    const response = await fetch(endpoint);
-
-    if (!response.ok) {
-      throw new Error(`HTTP Error: ${response.status}`);
+  // 1. Intentar consultar primero en Firebase Realtime Database
+  if (window.NoAIFirebaseSync) {
+    try {
+      const fbData = await window.NoAIFirebaseSync.consultarNoticiasFirebase(provincia);
+      const seccionFirebase = {
+        noticias: "tiempo_real", verificaciones: "verificaciones", tweets: "tweets_recientes",
+        bluesky: "bluesky_posts"
+      }[seccion];
+      const tieneDatos = fbData && seccionFirebase && (
+        (Array.isArray(fbData[seccionFirebase]) && fbData[seccionFirebase].length > 0) ||
+        (seccion === "bluesky" && Array.isArray(fbData.bluesky_posts_nacionales) && fbData.bluesky_posts_nacionales.length > 0)
+      );
+      if (tieneDatos) {
+        console.log(`[Firebase Realtime DB] Datos obtenidos de la base de datos para: ${provincia}`);
+        state.feedCache[provincia][seccion] = fbData;
+        state.datosActuales = fbData;
+        renderizarResultados(fbData);
+        return;
+      }
+    } catch (fbErr) {
+      console.warn("[Firebase Realtime DB] Error al consultar Realtime DB:", fbErr);
     }
-
-    const data = await response.json();
-    state.feedCache[provincia][seccion] = data;
-    state.datosActuales = data;
-    renderizarResultados(data);
-
-  } catch (error) {
-    console.error("Error al conectar con el backend:", error);
-    sidebarContent.innerHTML = `
-      <div class="state-box">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-        </svg>
-        <div class="state-title">Error de conexión</div>
-        <div class="state-desc">No se pudo obtener datos del servidor FastAPI para <strong>${provincia}</strong>.<br><br><small>${error.message}</small></div>
-      </div>
-    `;
   }
+
+  state.datosActuales = null;
+  sidebarContent.innerHTML = `
+    <div class="state-box">
+      <div class="state-title">Aún no hay datos guardados</div>
+      <div class="state-desc">El colector del servidor debe consultar las fuentes y guardar sus resultados en Firebase. Esta aplicación solo muestra los datos almacenados.</div>
+    </div>
+  `;
 }
 
 /**
@@ -506,7 +517,7 @@ function obtenerAnioItem(item) {
   const match = String(textDate).match(/\b(202[0-9])\b/);
   if (match) return match[1];
   if (item.anio) return String(item.anio);
-  return "2026";
+  return "";
 }
 
 function itemCumpleAnio(item, filtroAnio) {
@@ -530,7 +541,7 @@ function formatearFechaSafe(fechaStr) {
 }
 
 /**
- * Renderiza el feed unificado en tiempo real con filtrado por Sección y Año (Prensa, Fact-Check, X, Bluesky, Meta Ads)
+ * Renderiza el feed unificado en tiempo real con filtrado por Sección y Año (Prensa, Fact-Check, X y Bluesky)
  */
 function renderizarResultados(data) {
   const sidebarContent = document.getElementById("sidebar-content");
@@ -539,9 +550,10 @@ function renderizarResultados(data) {
 
   const rawNoticias = data.tiempo_real || [];
   const rawVerificaciones = data.verificaciones || [];
-  const rawTweets = data.tweets_recientes || [];
+  // X está desactivado y no debe aparecer ni desde caché antigua de Firebase.
+  const rawTweets = [];
   const rawBluesky = data.bluesky_posts || [];
-  const rawMetaAds = data.meta_ads || [];
+  const rawBlueskyNacionales = data.bluesky_posts_nacionales || [];
 
   const noticias = (seccion === "todas" || seccion === "noticias")
     ? rawNoticias.filter(item => itemCumpleAnio(item, anio))
@@ -559,11 +571,11 @@ function renderizarResultados(data) {
     ? rawBluesky.filter(item => itemCumpleAnio(item, anio))
     : [];
 
-  const metaAds = (seccion === "todas" || seccion === "meta_ads" || seccion === "meta_publicaciones")
-    ? rawMetaAds.filter(item => itemCumpleAnio(item, anio))
+  const blueskyNationalPosts = (seccion === "todas" || seccion === "bluesky")
+    ? rawBlueskyNacionales.filter(item => itemCumpleAnio(item, anio))
     : [];
 
-  const totalElementos = noticias.length + verificaciones.length + tweets.length + blueskyPosts.length + metaAds.length;
+  const totalElementos = noticias.length + verificaciones.length + tweets.length + blueskyPosts.length + blueskyNationalPosts.length;
 
   if (totalElementos === 0) {
     sidebarContent.innerHTML = `
@@ -744,12 +756,12 @@ function renderizarResultados(data) {
   }
 
   // 4. SECCIÓN: Publicaciones en Bluesky (AT Protocol)
-  if (blueskyPosts.length > 0) {
+  if (blueskyPosts.length > 0 || blueskyNationalPosts.length > 0) {
     html += `
       <div class="section-title-container" style="margin-top: 20px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
         <div style="display: flex; align-items: center; gap: 8px;">
           <span style="display: inline-block; width: 10px; height: 10px; background-color: #0285ff; border-radius: 50%;"></span>
-          <h3 style="font-size: 0.95rem; font-weight: 700;">Publicaciones en Bluesky (${blueskyPosts.length})</h3>
+          <h3 style="font-size: 0.95rem; font-weight: 700;">Publicaciones electorales locales en Bluesky (${blueskyPosts.length})</h3>
         </div>
         <span style="font-size: 0.75rem; color: #0285ff; font-weight: 600;">🦋 Red Descentralizada</span>
       </div>
@@ -790,47 +802,30 @@ function renderizarResultados(data) {
         </div>
       `;
     });
-  }
 
-  // 5. SECCIÓN: Publicaciones Políticas en Meta (Facebook / Instagram)
-  if (metaAds.length > 0) {
-    html += `
-      <div class="section-title-container" style="margin-top: 20px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <span style="display: inline-block; width: 10px; height: 10px; background-color: #1877f2; border-radius: 50%;"></span>
-          <h3 style="font-size: 0.95rem; font-weight: 700;">Publicaciones de Meta / Facebook (${metaAds.length})</h3>
-        </div>
-        <span style="font-size: 0.75rem; color: #1877f2; font-weight: 600;">📢 Meta (FB / IG)</span>
-      </div>
-    `;
-
-    metaAds.forEach((ad) => {
-      const pageName = ad.page_name || "Página Meta";
-      const dateFormatted = ad.date || "";
-
+    if (blueskyNationalPosts.length > 0) {
       html += `
-        <div class="item-card" style="border-left: 4px solid #1877f2;">
-          <div class="item-card-header" style="margin-bottom: 8px;">
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <div class="item-page-name" style="font-weight: 700; font-size: 0.9rem;">${escaparHtml(pageName)}</div>
-              <span class="item-reach-badge" style="background: #e7f3ff; color: #1877f2; border: 1px solid #b8daff; font-weight: 600;">Monitoreo Meta</span>
-            </div>
-            <span style="font-size: 0.75rem; color: #94a3b8;">${escaparHtml(dateFormatted)}</span>
-          </div>
-
-          <div class="item-body" style="font-size: 0.875rem; line-height: 1.45; margin-bottom: 12px;">
-            ${escaparHtml(ad.text)}
-          </div>
-
-          <div class="item-footer" style="margin-top: 10px;">
-            <span style="font-size: 0.75rem; color: #1877f2; font-weight: 600;">📢 Meta</span>
-            <a href="${ad.link}" target="_blank" rel="noopener noreferrer" class="btn-action" style="background: #1877f2;">
-              Ver Publicación
-            </a>
-          </div>
-        </div>
+        <details style="margin: 14px 0; border: 1px solid #334155; border-radius: 10px; padding: 10px 12px;">
+          <summary style="cursor: pointer; font-weight: 700; color: #94a3b8;">
+            Archivo anterior de búsqueda amplia (${blueskyNationalPosts.length}) — abrir para consultar
+          </summary>
+          <p style="font-size: 0.8rem; color: #94a3b8; margin: 8px 0;">Se conserva separado; la búsqueda anterior era amplia y algunas publicaciones pueden no tratar de elecciones ni de esta provincia.</p>
       `;
-    });
+      blueskyNationalPosts.forEach((bp) => {
+        const author = bp.author || {};
+        html += `
+          <div class="item-card" style="border-left: 4px solid #64748b;">
+            <div class="item-card-header">
+              <strong>${escaparHtml(author.name || 'Usuario Bluesky')}</strong>
+              <span style="color:#64748b;">${escaparHtml(author.handle || '')}</span>
+            </div>
+            <div class="item-body">${escaparHtml(bp.text || '')}</div>
+            <a href="${escaparHtml(bp.link || '#')}" target="_blank" rel="noopener noreferrer" class="btn-action" style="background:#64748b;">Ver en Bluesky</a>
+          </div>
+        `;
+      });
+      html += `</details>`;
+    }
   }
 
   sidebarContent.innerHTML = html;
@@ -888,33 +883,29 @@ async function cargarEstadisticasDashboard(provincia = "todas") {
     cardProvincias.style.display = (provincia === "todas" || !provincia) ? "block" : "none";
   }
 
-  try {
-    const endpoint = `${state.backendUrl}/api/dashboard/stats?provincia=${encodeURIComponent(provincia)}`;
-    console.log(`[Dashboard Stats] Consultando stats para: ${provincia}`);
-    const res = await fetch(endpoint);
-    const statsData = res.ok ? await res.json() : null;
-
-    actualizarResumenYSincronizacion(statsData, provincia);
-    renderizarChartFuentes(statsData);
-    if (provincia === "todas" || !provincia) {
-      renderizarChartProvincias(statsData);
+  // Las estadísticas las escribe el colector del servidor; el frontend solo lee.
+  if (window.NoAIFirebaseSync) {
+    try {
+      const fbStats = await window.NoAIFirebaseSync.consultarDashboardStatsFirebase();
+      if (fbStats && fbStats.distribucion_fuentes) {
+        console.log("[Dashboard Stats] Cargadas desde Firebase Realtime Database");
+        actualizarResumenYSincronizacion(fbStats, provincia);
+        renderizarChartFuentes(fbStats);
+        renderizarChartProvincias(fbStats);
+        if (loadingOverlay) loadingOverlay.style.display = "none";
+        return;
+      }
+    } catch (fbErr) {
+      console.warn("[Dashboard Stats] Error leyendo de Firebase RTDB:", fbErr);
     }
-    renderizarChartAdvertencias(statsData);
-
-  } catch (error) {
-    console.warn("No se pudo cargar estadísticas del backend, usando datos dinámicos:", error);
-    actualizarResumenYSincronizacion(null, provincia);
-    renderizarChartFuentes(null);
-    if (provincia === "todas" || !provincia) {
-      renderizarChartProvincias(null);
-    }
-    renderizarChartAdvertencias(null);
-  } finally {
-    if (loadingOverlay) {
-      setTimeout(() => {
-        loadingOverlay.style.display = "none";
-      }, 250);
-    }
+  }
+  actualizarResumenYSincronizacion(null, provincia);
+  renderizarChartFuentes(null);
+  renderizarChartProvincias(null);
+  const summary = document.getElementById("summary-content");
+  if (summary) summary.textContent = "Las estadísticas aparecerán cuando el colector del servidor las guarde en Firebase.";
+  if (loadingOverlay) {
+    setTimeout(() => { loadingOverlay.style.display = "none"; }, 250);
   }
 }
 
@@ -922,30 +913,28 @@ function actualizarResumenYSincronizacion(data, provincia) {
   const summaryContent = document.getElementById("summary-content");
   const summaryScopeBadge = document.getElementById("summary-scope-badge");
   const liveUpdateText = document.getElementById("live-update-text");
-  const metricAdvertencias = document.getElementById("metric-advertencias");
+  const metricFactChecks = document.getElementById("metric-factchecks");
 
-  const now = new Date();
-  const timeStr = now.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-
-  if (liveUpdateText) liveUpdateText.textContent = `100% En Vivo (${timeStr})`;
+  const updatedAt = data?.actualizado_en ? new Date(data.actualizado_en) : null;
+  if (liveUpdateText) {
+    liveUpdateText.textContent = updatedAt && !Number.isNaN(updatedAt.getTime())
+      ? `Datos actualizados: ${updatedAt.toLocaleString('es-EC')}`
+      : "Sin datos guardados";
+  }
 
   const nombreProvincia = (provincia === "todas" || !provincia) ? "Ecuador (Nacional)" : provincia;
   if (summaryScopeBadge) summaryScopeBadge.textContent = nombreProvincia;
 
   if (data && data.resumen_general) {
     if (summaryContent) summaryContent.innerHTML = data.resumen_general;
-    if (metricAdvertencias && data.porcentaje_advertencias) {
-      metricAdvertencias.textContent = `${data.porcentaje_advertencias.con_advertencia_google}%`;
+    if (metricFactChecks) {
+      metricFactChecks.textContent = String(data.distribucion_fuentes?.fact_checks ?? 0);
     }
   } else {
     // Generación de resumen dinámico fallback
     const provName = (provincia === "todas" || !provincia) ? "Ecuador" : provincia;
     if (summaryContent) {
-      summaryContent.innerHTML = `
-        Monitoreo activo en tiempo real para <strong>${escaparHtml(provName)}</strong>. 
-        Se procesan continuamente 5 fuentes cívicas (<span class='summary-highlight'>Prensa, Google Fact Check, X/Twitter, Bluesky y Meta Ads</span>) 
-        para detectar tendencias electorales y alertas de desinformación.
-      `;
+      summaryContent.textContent = `Aún no hay estadísticas guardadas para ${provName}. El servidor las mostrará cuando termine la primera recolección.`;
     }
   }
 }
@@ -958,21 +947,19 @@ function renderizarChartFuentes(data) {
     state.charts.fuentes.destroy();
   }
 
-  const fuentes = data?.distribucion_fuentes || { prensa_tiempo_real: 35, fact_checks: 20, redes_sociales_x: 20, bluesky_feed: 15, meta_ads: 10 };
+  const fuentes = data?.distribucion_fuentes || { prensa_tiempo_real: 0, fact_checks: 0, redes_sociales_x: 0, bluesky_feed: 0 };
 
   state.charts.fuentes = new Chart(ctx, {
     type: "doughnut",
     data: {
-      labels: ["Prensa en Tiempo Real", "Google Fact Check", "Redes Sociales (X)", "Bluesky (AT Protocol)", "Meta Ads (FB/IG)"],
+      labels: ["Prensa (Google News/GNews)", "Revisiones Google Fact Check", "Bluesky"],
       datasets: [{
         data: [
-          fuentes.prensa_tiempo_real || 35, 
-          fuentes.fact_checks || 20, 
-          fuentes.redes_sociales_x || 20,
-          fuentes.bluesky_feed || 15,
-          fuentes.meta_ads || 10
+          fuentes.prensa_tiempo_real || 0,
+          fuentes.fact_checks || 0,
+          fuentes.bluesky_feed || 0
         ],
-        backgroundColor: ["#4f46e5", "#ef4444", "#1d9bf0", "#0285ff", "#1877f2"],
+        backgroundColor: ["#4f46e5", "#ef4444", "#0285ff"],
         borderWidth: 2,
         borderColor: "#ffffff"
       }]
@@ -999,14 +986,7 @@ function renderizarChartProvincias(data) {
     state.charts.provincias.destroy();
   }
 
-  const list = data?.top_provincias_cobertura || [
-    { provincia: "Pichincha", porcentaje: 28.4 },
-    { provincia: "Guayas", porcentaje: 25.6 },
-    { provincia: "Manabí", porcentaje: 15.0 },
-    { provincia: "Azuay", porcentaje: 12.4 },
-    { provincia: "El Oro", porcentaje: 9.6 },
-    { provincia: "Otras Provincias", porcentaje: 9.0 }
-  ];
+  const list = data?.top_provincias_cobertura || [];
 
   const labels = list.map(item => item.provincia);
   const values = list.map(item => item.porcentaje);
@@ -1037,41 +1017,6 @@ function renderizarChartProvincias(data) {
   });
 }
 
-function renderizarChartAdvertencias(data) {
-  const ctx = document.getElementById("chartAdvertencias");
-  if (!ctx) return;
-
-  if (state.charts.advertencias) {
-    state.charts.advertencias.destroy();
-  }
-
-  const adv = data?.porcentaje_advertencias || { informacion_general: 82, con_advertencia_google: 18 };
-
-  state.charts.advertencias = new Chart(ctx, {
-    type: "doughnut",
-    data: {
-      labels: [`Información General / Verificada (${adv.informacion_general}%)`, `Contenido con Advertencia (${adv.con_advertencia_google}%)`],
-      datasets: [{
-        data: [adv.informacion_general, adv.con_advertencia_google],
-        backgroundColor: ["#10b981", "#ef4444"],
-        borderWidth: 2,
-        borderColor: "#ffffff"
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { 
-          position: "bottom", 
-          onClick: () => {}, 
-          labels: { color: "#0f172a", font: { family: "Inter", size: 12, weight: "700" } } 
-        }
-      }
-    }
-  });
-}
-
 function escaparHtml(str) {
   if (!str) return "";
   return String(str)
@@ -1092,22 +1037,16 @@ async function inicializarBuscadorPalabrasClave() {
 
   if (!pillsList) return;
 
-  try {
-    const res = await fetch(`${state.backendUrl}/api/dashboard/keywords`);
-    if (res.ok) {
-      const data = await res.json();
-      renderizarPildorasTendencia(data.trending_keywords);
-    }
-  } catch (err) {
-    console.warn("Error cargando palabras clave tendencia:", err);
-    renderizarPildorasTendencia([
-      { word: "CNE", count: 142 },
-      { word: "Noboa", count: 128 },
-      { word: "Luisa", count: 115 },
-      { word: "Seguridad", count: 98 },
-      { word: "Encuestas", count: 84 },
-      { word: "Voto2027", count: 76 }
-    ]);
+  const savedKeywords = await window.NoAIFirebaseSync?.consultarKeywordsFirebase();
+  renderizarPildorasTendencia(savedKeywords?.trending_keywords || []);
+
+  // Escuchar actualizaciones en tiempo real desde Firebase
+  if (window.NoAIFirebaseSync) {
+    window.NoAIFirebaseSync.escucharKeywordsFirebase((fbData) => {
+      if (fbData && fbData.trending_keywords) {
+        renderizarPildorasTendencia(fbData.trending_keywords);
+      }
+    });
   }
 
   if (btnSearchKW && inputKW) {
@@ -1125,7 +1064,7 @@ async function inicializarBuscadorPalabrasClave() {
   }
 }
 
-function renderizarPildorasTendencia(keywords) {
+function renderizarPildorasTendencia(keywords = []) {
   const pillsList = document.getElementById("keyword-pills-list");
   if (!pillsList) return;
 
@@ -1137,6 +1076,7 @@ function renderizarPildorasTendencia(keywords) {
       </button>
     `;
   });
+  if (!html) html = '<p class="state-desc">Las tendencias aparecerán cuando el colector las guarde en Firebase.</p>';
   pillsList.innerHTML = html;
 
   pillsList.querySelectorAll(".kw-pill").forEach(pill => {
@@ -1166,8 +1106,43 @@ async function consultarAnalisisPalabraClave(palabra) {
   `;
 
   try {
-    const res = await fetch(`${state.backendUrl}/api/dashboard/keywords?q=${encodeURIComponent(palabra)}`);
-    const data = res.ok ? await res.json() : null;
+    const snapshot = await window.NoAIFirebase?.db?.ref("noticias").once("value");
+    const provincias = snapshot?.val() || {};
+    const termino = normalizarTexto(palabra);
+    const camposPorSeccion = {
+      tiempo_real: ["titulo", "fuente"],
+      verificaciones: ["text", "claim", "publisher", "claimant"],
+      bluesky_posts: ["text", "titulo", "author"]
+    };
+    const coincidencias = [];
+    const distribucion = { prensa: 0, fact_check: 0, bluesky: 0 };
+
+    Object.values(provincias).forEach((feed) => {
+      Object.entries(camposPorSeccion).forEach(([seccion, campos]) => {
+        (Array.isArray(feed?.[seccion]) ? feed[seccion] : []).forEach((item) => {
+          const texto = campos.map((campo) => item?.[campo] || "").join(" ");
+          if (normalizarTexto(texto).includes(termino)) {
+            coincidencias.push(item.titulo || item.text || item.claim || texto);
+            const categoria = {
+              tiempo_real: "prensa", verificaciones: "fact_check",
+              bluesky_posts: "bluesky"
+            }[seccion];
+            distribucion[categoria] += 1;
+          }
+        });
+      });
+    });
+
+    const data = {
+      analisis: {
+        palabra,
+        categoria: "Coincidencias en Firebase",
+        menciones_totales: coincidencias.length,
+        distribucion,
+        resumen_analisis: `Se encontraron <strong>${coincidencias.length}</strong> coincidencias en los datos almacenados en Firebase.`,
+        titulares_relacionados: coincidencias.slice(0, 5)
+      }
+    };
 
     if (data && data.analisis) {
       const a = data.analisis;
@@ -1209,6 +1184,11 @@ async function consultarAnalisisPalabraClave(palabra) {
       `;
     }
   } catch (err) {
-    resultBox.innerHTML = `<div style="color: #ef4444; font-size: 0.9rem;">Error al analizar la palabra clave. Reintenta de nuevo.</div>`;
+    resultBox.innerHTML = `<div style="color: #ef4444; font-size: 0.9rem;">No se pudieron leer las noticias almacenadas en Firebase.</div>`;
   }
+}
+
+function normalizarTexto(valor) {
+  return String(valor || "").toLocaleLowerCase("es")
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }

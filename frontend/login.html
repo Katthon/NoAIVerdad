@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Iniciar Sesión - NoAIVerdad</title>
+  <meta name="description" content="Acceso a la plataforma cívica de monitoreo electoral en Ecuador.">
+
+  <!-- Google Fonts Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Estilos base y de autenticación -->
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    body.auth-page {
+      background: radial-gradient(circle at 50% 20%, #1e1b4b 0%, #0b0f19 75%);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      overflow-y: auto;
+    }
+
+    .auth-container {
+      width: 100%;
+      max-width: 440px;
+      background: rgba(30, 41, 59, 0.75);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 16px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+      padding: 32px 28px;
+      animation: fadeIn 0.3s ease-out;
+    }
+
+    .auth-header {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    .auth-logo {
+      height: 44px;
+      margin-bottom: 12px;
+      object-fit: contain;
+    }
+
+    .auth-title {
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: #ffffff;
+      margin-bottom: 6px;
+    }
+
+    .auth-title span {
+      color: #6366f1;
+    }
+
+    .auth-subtitle {
+      font-size: 0.85rem;
+      color: #94a3b8;
+    }
+
+    .auth-tabs {
+      display: flex;
+      background: rgba(15, 23, 42, 0.6);
+      border-radius: 10px;
+      padding: 4px;
+      margin-bottom: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .auth-tab-btn {
+      flex: 1;
+      padding: 8px 12px;
+      border: none;
+      background: transparent;
+      color: #94a3b8;
+      font-size: 0.85rem;
+      font-weight: 600;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .auth-tab-btn.active {
+      background: #4f46e5;
+      color: #ffffff;
+      box-shadow: 0 2px 8px rgba(79, 70, 229, 0.4);
+    }
+
+    .auth-form-group {
+      margin-bottom: 16px;
+    }
+
+    .auth-label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #cbd5e1;
+      margin-bottom: 6px;
+    }
+
+    .auth-input {
+      width: 100%;
+      padding: 10px 14px;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 8px;
+      color: #ffffff;
+      font-size: 0.9rem;
+      box-sizing: border-box;
+      transition: all 0.2s ease;
+    }
+
+    .auth-input:focus {
+      outline: none;
+      border-color: #6366f1;
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
+    }
+
+    .auth-btn-primary {
+      width: 100%;
+      padding: 11px;
+      background: linear-gradient(135deg, #4f46e5, #3b82f6);
+      border: none;
+      border-radius: 8px;
+      color: #ffffff;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(79, 70, 229, 0.4);
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .auth-btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(79, 70, 229, 0.6);
+    }
+
+    .auth-btn-primary:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .auth-divider {
+      display: flex;
+      align-items: center;
+      margin: 20px 0;
+      color: #64748b;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .auth-divider::before,
+    .auth-divider::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .auth-divider span {
+      padding: 0 12px;
+    }
+
+    .auth-btn-google {
+      width: 100%;
+      padding: 10px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 8px;
+      color: #ffffff;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: all 0.2s ease;
+    }
+
+    .auth-btn-google:hover {
+      background: rgba(255, 255, 255, 0.15);
+      border-color: rgba(255, 255, 255, 0.25);
+    }
+
+    .google-icon {
+      width: 18px;
+      height: 18px;
+    }
+
+    .auth-alert {
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      margin-bottom: 16px;
+      display: none;
+      animation: fadeIn 0.2s ease;
+    }
+
+    .auth-alert.error {
+      background: rgba(239, 68, 68, 0.2);
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      color: #fca5a5;
+    }
+
+    .auth-alert.success {
+      background: rgba(34, 197, 94, 0.2);
+      border: 1px solid rgba(34, 197, 94, 0.4);
+      color: #86efac;
+    }
+
+    .auth-footer {
+      text-align: center;
+      margin-top: 20px;
+    }
+
+    .auth-back-link {
+      color: #94a3b8;
+      font-size: 0.82rem;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: color 0.2s ease;
+    }
+
+    .auth-back-link:hover {
+      color: #38bdf8;
+    }
+
+    .auth-forgot-pass {
+      color: #818cf8;
+      font-size: 0.78rem;
+      text-decoration: none;
+      float: right;
+    }
+
+    .auth-forgot-pass:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body class="auth-page">
+
+  <div class="auth-container">
+    <div class="auth-header">
+      <img src="img/LOGO_WHITE.png" alt="NoAIVerdad Logo" class="auth-logo" />
+      <h1 class="auth-title">NoAI<span>Verdad</span></h1>
+      <p class="auth-subtitle">Acceso Cívico a la Plataforma Electoral Ecuador</p>
+    </div>
+
+    <!-- Switch de Pestañas: Login vs Registro -->
+    <div class="auth-tabs">
+      <button id="tab-login" class="auth-tab-btn active">Iniciar Sesión</button>
+      <button id="tab-register" class="auth-tab-btn">Crear Cuenta</button>
+    </div>
+
+    <!-- Mensaje de Feedback -->
+    <div id="auth-alert" class="auth-alert"></div>
+
+    <!-- FORMULARIO 1: INICIO DE SESIÓN -->
+    <form id="form-login">
+      <div class="auth-form-group">
+        <label for="login-email" class="auth-label">Correo Electrónico</label>
+        <input type="email" id="login-email" class="auth-input" placeholder="ejemplo@correo.com" required autocomplete="email" />
+      </div>
+
+      <div class="auth-form-group">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <label for="login-password" class="auth-label" style="margin: 0;">Contraseña</label>
+          <a href="#" id="link-forgot-pass" class="auth-forgot-pass">¿Olvidaste tu contraseña?</a>
+        </div>
+        <input type="password" id="login-password" class="auth-input" placeholder="••••••••" required autocomplete="current-password" />
+      </div>
+
+      <button type="submit" id="btn-submit-login" class="auth-btn-primary">
+        <span>Ingresar a NoAIVerdad</span>
+      </button>
+    </form>
+
+    <!-- FORMULARIO 2: REGISTRO DE NUEVA CUENTA -->
+    <form id="form-register" style="display: none;">
+      <div class="auth-form-group">
+        <label for="reg-name" class="auth-label">Nombre Completo o Alias</label>
+        <input type="text" id="reg-name" class="auth-input" placeholder="Juan Pérez" required autocomplete="name" />
+      </div>
+
+      <div class="auth-form-group">
+        <label for="reg-email" class="auth-label">Correo Electrónico</label>
+        <input type="email" id="reg-email" class="auth-input" placeholder="ejemplo@correo.com" required autocomplete="email" />
+      </div>
+
+      <div class="auth-form-group">
+        <label for="reg-password" class="auth-label">Contraseña (Mínimo 6 caracteres)</label>
+        <input type="password" id="reg-password" class="auth-input" placeholder="••••••••" required minlength="6" autocomplete="new-password" />
+      </div>
+
+      <div class="auth-form-group">
+        <label for="reg-password-confirm" class="auth-label">Confirmar Contraseña</label>
+        <input type="password" id="reg-password-confirm" class="auth-input" placeholder="••••••••" required minlength="6" autocomplete="new-password" />
+      </div>
+
+      <button type="submit" id="btn-submit-register" class="auth-btn-primary">
+        <span>Crear Cuenta Ciudadana</span>
+      </button>
+    </form>
+
+    <!-- Separador -->
+    <div class="auth-divider">
+      <span>o continúa con</span>
+    </div>
+
+    <!-- Botón de Google Sign-In -->
+    <button type="button" id="btn-google-auth" class="auth-btn-google">
+      <svg class="google-icon" viewBox="0 0 24 24">
+        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+      </svg>
+      <span>Continuar con Google</span>
+    </button>
+
+  </div>
+
+  <!-- Firebase Compat SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+
+  <!-- Configuración de Firebase -->
+  <script src="js/firebase-config.js"></script>
+
+  <!-- Lógica de Autenticación -->
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const tabLogin = document.getElementById("tab-login");
+      const tabRegister = document.getElementById("tab-register");
+      const formLogin = document.getElementById("form-login");
+      const formRegister = document.getElementById("form-register");
+      const alertBox = document.getElementById("auth-alert");
+      const btnGoogle = document.getElementById("btn-google-auth");
+      const linkForgot = document.getElementById("link-forgot-pass");
+
+      const auth = window.NoAIFirebase.auth;
+      const googleProvider = window.NoAIFirebase.googleProvider;
+
+      // Si ya está autenticado, redirigir automáticamente a index.html
+      auth.onAuthStateChanged((user) => {
+        if (user) {
+          mostrarAlerta(`¡Bienvenido de nuevo, ${user.displayName || user.email}! Redirigiendo...`, "success");
+          setTimeout(() => {
+            window.location.href = "index.html";
+          }, 1000);
+        }
+      });
+
+      // Cambio de pestañas
+      tabLogin.addEventListener("click", () => {
+        tabLogin.classList.add("active");
+        tabRegister.classList.remove("active");
+        formLogin.style.display = "block";
+        formRegister.style.display = "none";
+        ocultarAlerta();
+      });
+
+      tabRegister.addEventListener("click", () => {
+        tabRegister.classList.add("active");
+        tabLogin.classList.remove("active");
+        formLogin.style.display = "none";
+        formRegister.style.display = "block";
+        ocultarAlerta();
+      });
+
+      // Feedback helpers
+      function mostrarAlerta(msg, tipo = "error") {
+        alertBox.className = `auth-alert ${tipo}`;
+        alertBox.textContent = msg;
+        alertBox.style.display = "block";
+      }
+
+      function ocultarAlerta() {
+        alertBox.style.display = "none";
+      }
+
+      function traducirErrorFirebase(code) {
+        switch (code) {
+          case "auth/invalid-email":
+            return "El formato del correo electrónico no es válido.";
+          case "auth/user-disabled":
+            return "Esta cuenta ha sido deshabilitada por el administrador.";
+          case "auth/user-not-found":
+          case "auth/wrong-password":
+          case "auth/invalid-credential":
+            return "Correo o contraseña incorrectos. Verifica tus credenciales.";
+          case "auth/email-already-in-use":
+            return "Este correo ya está registrado. Inicia sesión o recupera tu contraseña.";
+          case "auth/weak-password":
+            return "La contraseña es muy débil. Usa al menos 6 caracteres con letras y números.";
+          case "auth/popup-closed-by-user":
+            return "Ventana de autenticación cerrada antes de completar el inicio de sesión.";
+          case "auth/network-request-failed":
+            return "Error de red al conectar con Firebase. Revisa tu conexión a internet.";
+          default:
+            return "Ocurrió un error al autenticar. Intenta de nuevo.";
+        }
+      }
+
+      // 1. Submit Login con Correo y Contraseña
+      formLogin.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        ocultarAlerta();
+        const email = document.getElementById("login-email").value.trim();
+        const pass = document.getElementById("login-password").value;
+        const btn = document.getElementById("btn-submit-login");
+
+        btn.disabled = true;
+        btn.innerHTML = "<span>Verificando credenciales...</span>";
+
+        try {
+          const userCredential = await auth.signInWithEmailAndPassword(email, pass);
+          mostrarAlerta(`¡Inicio de sesión exitoso! Ingresando...`, "success");
+          setTimeout(() => {
+            window.location.href = "index.html";
+          }, 800);
+        } catch (error) {
+          console.error("Error en login:", error);
+          mostrarAlerta(traducirErrorFirebase(error.code), "error");
+          btn.disabled = false;
+          btn.innerHTML = "<span>Ingresar a NoAIVerdad</span>";
+        }
+      });
+
+      // 2. Submit Registro de Nueva Cuenta
+      formRegister.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        ocultarAlerta();
+
+        const name = document.getElementById("reg-name").value.trim();
+        const email = document.getElementById("reg-email").value.trim();
+        const pass = document.getElementById("reg-password").value;
+        const passConf = document.getElementById("reg-password-confirm").value;
+        const btn = document.getElementById("btn-submit-register");
+
+        if (pass !== passConf) {
+          mostrarAlerta("Las contraseñas no coinciden. Por favor verifícalas.", "error");
+          return;
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = "<span>Creando cuenta ciudadana...</span>";
+
+        try {
+          const userCredential = await auth.createUserWithEmailAndPassword(email, pass);
+          // Actualizar perfil con el nombre
+          if (name && userCredential.user) {
+            await userCredential.user.updateProfile({ displayName: name });
+            await window.NoAIFirebase.sincronizarUsuarioEnDatabase(userCredential.user);
+          }
+          mostrarAlerta("¡Cuenta creada exitosamente! Ingresando a la plataforma...", "success");
+          setTimeout(() => {
+            window.location.href = "index.html";
+          }, 900);
+        } catch (error) {
+          console.error("Error en registro:", error);
+          mostrarAlerta(traducirErrorFirebase(error.code), "error");
+          btn.disabled = false;
+          btn.innerHTML = "<span>Crear Cuenta Ciudadana</span>";
+        }
+      });
+
+      // 3. Login con Google
+      btnGoogle.addEventListener("click", async () => {
+        ocultarAlerta();
+        try {
+          const result = await auth.signInWithPopup(googleProvider);
+          mostrarAlerta(`¡Bienvenido, ${result.user.displayName}! Ingresando...`, "success");
+          setTimeout(() => {
+            window.location.href = "index.html";
+          }, 800);
+        } catch (error) {
+          console.error("Error con Google:", error);
+          if (error.code !== "auth/popup-closed-by-user") {
+            mostrarAlerta(traducirErrorFirebase(error.code), "error");
+          }
+        }
+      });
+
+      // 4. Recuperación de contraseña
+      linkForgot.addEventListener("click", async (e) => {
+        e.preventDefault();
+        const email = document.getElementById("login-email").value.trim();
+        if (!email) {
+          mostrarAlerta("Ingresa tu correo en el campo superior y presiona nuevamente '¿Olvidaste tu contraseña?'.", "error");
+          document.getElementById("login-email").focus();
+          return;
+        }
+
+        try {
+          await auth.sendPasswordResetEmail(email);
+          mostrarAlerta(`Se ha enviado un enlace de recuperación a ${email}. Revisa tu bandeja de entrada o spam.`, "success");
+        } catch (error) {
+          mostrarAlerta(traducirErrorFirebase(error.code), "error");
+        }
+      });
+    });
+  </script>
+</body>
+</html>

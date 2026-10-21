@@ -1,0 +1,27 @@
+# Secretos de desarrollo y claves Firebase Admin
+.env*
+**/.env*
+!.env.example
+!**/.env.example
+*service-account*.json
+*serviceAccount*.json
+*firebase-adminsdk*.json
+firebase-service-account.json
+/firebase_seed_data.json
+/firebase_import_ready.json
+
+# Artefactos locales
+node_modules/
+dist/
+dist-*/
+build/
+release/
+backend/venv/
+backend/.venv/
+__pycache__/
+backend/__pycache__/
+*.py[cod]
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

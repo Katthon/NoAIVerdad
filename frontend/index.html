@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://apis.google.com https://unpkg.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' http://localhost:* https: wss:; frame-src https://*.firebaseapp.com https://accounts.google.com https://*.google.com https://*.gstatic.com; object-src 'none'; base-uri 'self'; form-action 'self' https:;">
   <title>NoAIVerdad - Monitoreo Electoral e Inteligencia Cívica (Ecuador)</title>
   <meta name="description" content="Plataforma cívica para el monitoreo de noticias, desinformación y publicaciones electorales en las 24 provincias de Ecuador.">
   
@@ -15,7 +16,7 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
 
   <!-- Hoja de Estilos de la Aplicación -->
-  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/styles.css?v=4.3.0">
 </head>
 <body>
 
@@ -43,6 +44,18 @@
       <button id="btn-toggle-theme" class="theme-toggle-btn" title="Cambiar tema (Oscuro / Claro)">
         🌙 Modo Oscuro
       </button>
+
+      <!-- Autenticación Firebase (Login / Perfil) -->
+      <div id="auth-nav-container" class="auth-nav-container">
+        <button id="btn-nav-login" class="nav-auth-btn" type="button">
+          🔑 Iniciar Sesión / Registrarse
+        </button>
+        <div id="user-profile-badge" class="user-profile-badge" style="display: none;">
+          <div class="user-avatar-circle" id="user-avatar-initials">U</div>
+          <span id="user-display-name" class="user-name-text">Usuario</span>
+          <button id="btn-nav-logout" class="btn-logout" title="Cerrar sesión">Salir</button>
+        </div>
+      </div>
     </nav>
   </header>
 
@@ -52,7 +65,7 @@
     <section class="hero-banner">
       <div class="hero-content">
         <span class="hero-badge">⚡ Cobertura Provincial en Tiempo Real</span>
-        <h2 class="hero-title">Verifica las noticias de las provincias de Ecuador en tiempo real</h2>
+        <h2 class="hero-title">Consulta fuentes y revisiones electorales por provincia</h2>
         <p class="hero-description">
           Explora la información electoral, cobertura periodística y publicaciones en redes sociales de las 24 provincias. 
           Selecciona una provincia en el buscador o directamente en el mapa.
@@ -117,9 +130,7 @@
               <select id="filter-section" class="filter-select">
                 <option value="noticias">📰 Noticias de Prensa</option>
                 <option value="verificaciones">⚠️ Posibles Falsas / Fact-Check</option>
-                <option value="tweets">🐦 X (Twitter)</option>
                 <option value="bluesky">🦋 Bluesky (Red Social)</option>
-                <option value="meta_ads">📢 Publicaciones de Meta (FB / IG)</option>
               </select>
             </div>
 
@@ -152,7 +163,7 @@
   </main>
 
   <!-- PESTAÑA 2: VISTA DASHBOARD (ESTADÍSTICAS Y GRÁFICOS) -->
-  <main id="view-dashboard" class="view-section">
+  <main id="view-dashboard" class="view-section" hidden>
     <div class="dashboard-wrapper">
       <!-- Overlay de Carga del Dashboard -->
       <div id="dashboard-loading" class="dashboard-loading-overlay" style="display: none;">
@@ -254,23 +265,23 @@
           <div class="metric-icon" style="background: #e0e7ff; color: #4f46e5;">📍</div>
           <div class="metric-data">
             <div class="metric-value">24 / 24</div>
-            <div class="metric-label">Provincias Monitoreadas</div>
+          <div class="metric-label">Provincias configuradas</div>
           </div>
         </div>
 
         <div class="metric-card">
           <div class="metric-icon" style="background: #fef2f2; color: #dc2626;">⚠️</div>
           <div class="metric-data">
-            <div class="metric-value" id="metric-advertencias">18%</div>
-            <div class="metric-label">Contenido con Advertencia</div>
+            <div class="metric-value" id="metric-factchecks">0</div>
+            <div class="metric-label">Revisiones de fact-check</div>
           </div>
         </div>
 
         <div class="metric-card">
           <div class="metric-icon" style="background: #f0fdf4; color: #16a34a;">🌐</div>
           <div class="metric-data">
-            <div class="metric-value">5 Fuentes</div>
-            <div class="metric-label">Prensa + Fact-Check + X + Bluesky + Meta Ads</div>
+            <div class="metric-value">Fuentes externas</div>
+            <div class="metric-label">Los resultados dependen de la disponibilidad de cada fuente</div>
           </div>
         </div>
       </div>
@@ -299,29 +310,19 @@
           </div>
         </div>
 
-        <!-- Gráfico 3: Porcentaje de Alertas y Advertencias -->
-        <div class="chart-card full-width">
-          <div class="chart-header">
-            <h3>Proporción de Contenido Verificado vs Advertencias de Desinformación</h3>
-            <span>Monitoreo de publicaciones</span>
-          </div>
-          <div class="chart-body" style="max-height: 280px; display: flex; justify-content: center;">
-            <canvas id="chartAdvertencias"></canvas>
-          </div>
-        </div>
       </div>
     </div>
   </main>
 
   <!-- PESTAÑA 3: ACERCA DE / TUTORIAL -->
-  <main id="view-acerca" class="view-section about-view">
+  <main id="view-acerca" class="view-section about-view" hidden>
     <div class="about-wrapper">
 
       <!-- Hero de la sección -->
       <div class="about-hero">
         <div class="about-hero-badge">🇪🇨 Ecuador Electoral 2027</div>
         <h2 class="about-hero-title">Acerca de NoAIVerdad</h2>
-        <p class="about-hero-desc">Una plataforma cívica de código abierto para monitorear, verificar y analizar la información electoral en Ecuador. Sin algoritmos de IA generativa. Solo fuentes reales, en tiempo real.</p>
+      <p class="about-hero-desc">Una plataforma cívica de código abierto que reúne enlaces a fuentes externas, publicaciones sociales y revisiones de verificadores electorales en Ecuador. No certifica automáticamente la veracidad de las afirmaciones.</p>
       </div>
 
       <!-- Sección 1: ¿Qué es? -->
@@ -377,27 +378,17 @@
               </tr>
               <tr>
                 <td>⚠️ <strong>Google Fact Check Tools API</strong></td>
-                <td>Verificaciones de desinformación con calificación de veracidad</td>
+                <td>Resultados publicados por organizaciones de verificación; no determinan automáticamente la verdad de otras publicaciones</td>
                 <td><span class="tech-badge tech-api">API Oficial</span></td>
-              </tr>
-              <tr>
-                <td>🐦 <strong>X (Twitter) / ntscraper</strong></td>
-                <td>Publicaciones recientes con hashtags electorales</td>
-                <td><span class="tech-badge tech-social">Red Social</span></td>
               </tr>
               <tr>
                 <td>🦋 <strong>Bluesky AT Protocol</strong></td>
-                <td>Posts de la red social descentralizada Bluesky</td>
+                <td>Publicaciones públicas reales, combinando varias búsquedas temáticas por provincia</td>
                 <td><span class="tech-badge tech-social">Red Social</span></td>
               </tr>
               <tr>
-                <td>📢 <strong>Meta Ad Library</strong></td>
-                <td>Publicidad política activa en Facebook e Instagram</td>
-                <td><span class="tech-badge tech-api">API Oficial</span></td>
-              </tr>
-              <tr>
                 <td>🐍 <strong>FastAPI + Python</strong></td>
-                <td>Backend que agrega y filtra todas las fuentes en tiempo real</td>
+                <td>Backend que consulta fuentes externas y guarda los resultados disponibles</td>
                 <td><span class="tech-badge tech-open">Open Source</span></td>
               </tr>
               <tr>
@@ -441,21 +432,11 @@
           <div class="about-trust-card trust-social">
             <div class="trust-level-bar"></div>
             <div class="trust-card-body">
-              <div class="trust-icon">🐦 🦋</div>
-              <h4>X (Twitter) y Bluesky</h4>
+              <div class="trust-icon">🦋</div>
+              <h4>Bluesky</h4>
               <div class="trust-score">Confiabilidad: <strong>Baja-Media</strong></div>
               <p>Las redes sociales muestran opinión pública no filtrada. Son útiles para detectar tendencias y narrativas en circulación, pero cualquier publicación puede contener información incorrecta o manipuladora.</p>
               <div class="trust-limit">⚠️ Límite: No confundir popularidad con veracidad. Una publicación viral no significa que sea verdadera.</div>
-            </div>
-          </div>
-          <div class="about-trust-card trust-ads">
-            <div class="trust-level-bar"></div>
-            <div class="trust-card-body">
-              <div class="trust-icon">📢</div>
-              <h4>Meta Ad Library</h4>
-              <div class="trust-score">Confiabilidad: <strong>Referencial</strong></div>
-              <p>Muestra publicidad política pagada en Facebook e Instagram. Es útil para detectar campañas electorales activas y monitorear quién las financia, pero el contenido de los anuncios es por definición tendencioso.</p>
-              <div class="trust-limit">⚠️ Límite: Son anuncios pagados con agenda política. Analízalos críticamente.</div>
             </div>
           </div>
         </div>
@@ -487,10 +468,8 @@
               <p>Una vez seleccionada la provincia, el panel lateral muestra los resultados. Usa el menú <strong>"Sección"</strong> para elegir qué tipo de información quieres ver:</p>
               <ul class="tutorial-list">
                 <li><span class="tut-badge">📰 Noticias de Prensa</span> — Titulares periodísticos de medios ecuatorianos sobre esa provincia, desde Google News RSS.</li>
-                <li><span class="tut-badge">⚠️ Fact-Check</span> — Verificaciones de desinformación con calificación de veracidad. Ideal para detectar noticias falsas en circulación.</li>
-                <li><span class="tut-badge">🐦 X (Twitter)</span> — Publicaciones recientes con hashtags y términos relacionados a la provincia y las elecciones.</li>
-                <li><span class="tut-badge">🦋 Bluesky</span> — Posts de la red social descentralizada Bluesky, alternativa a Twitter.</li>
-                <li><span class="tut-badge">📢 Meta (FB / IG)</span> — Publicidad política activa en Facebook e Instagram relacionada a Ecuador.</li>
+                <li><span class="tut-badge">⚠️ Fact-Check</span> — Revisiones publicadas por verificadores; el resultado aplica a la afirmación revisada, no a noticias relacionadas.</li>
+                <li><span class="tut-badge">🦋 Bluesky</span> — Publicaciones públicas reales encontradas mediante varias consultas temáticas sobre Ecuador y la provincia seleccionada.</li>
               </ul>
             </div>
           </div>
@@ -542,6 +521,57 @@
         </div>
       </div>
 
+      <!-- Sección 5: Base de Datos en Tiempo Real (Firebase Realtime Database) -->
+      <div class="about-section-block">
+        <div class="about-section-header">
+          <span class="about-section-icon">🔥</span>
+          <h3>Base de Datos en Tiempo Real con Firebase</h3>
+        </div>
+        <p class="about-section-intro">Para garantizar que la información electoral esté disponible de forma instantánea, descentralizada y tolerante a fallos, NoAIVerdad implementa <strong>Firebase Realtime Database</strong> y <strong>Firebase Authentication</strong>:</p>
+        <div class="about-cards-row">
+          <div class="about-info-card">
+            <div class="about-info-icon">⚡</div>
+            <h4>Sincronización Inmediata</h4>
+            <p>La base de datos utiliza sockets bidireccionales en tiempo real. Cualquier actualización de prensa, alerta de desinformación o métrica provincial se refleja al instante en el mapa y en el dashboard de todos los usuarios sin necesidad de recargar la página.</p>
+          </div>
+          <div class="about-info-card">
+            <div class="about-info-icon">🔐</div>
+            <h4>Seguridad Cívica</h4>
+            <p>Implementa reglas de seguridad declarativas en Firebase. El acceso a las noticias e indicadores electorales es público y transparente, mientras que la autenticación de usuarios protege perfiles y habilita futuros reportes ciudadanos.</p>
+          </div>
+          <div class="about-info-card">
+            <div class="about-info-icon">🖥️</div>
+            <h4>Tolerancia Offline y Desktop</h4>
+            <p>La arquitectura permite empaquetar la plataforma como un ejecutable (.exe) de escritorio mediante Electron, manteniendo caché local de datos y reanudando la sincronización cuando se restablece la conexión.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sección 6: Equipo, Código Abierto y Filosofía Cívica -->
+      <div class="about-section-block">
+        <div class="about-section-header">
+          <span class="about-section-icon">🤝</span>
+          <h3>Equipo, Código Abierto y Transparencia</h3>
+        </div>
+        <div class="about-cards-row">
+          <div class="about-info-card">
+            <div class="about-info-icon">👥</div>
+            <h4>Iniciativa Ciudadana</h4>
+            <p>NoAIVerdad es desarrollada por investigadores cívicos y desarrolladores comprometidos con la transparencia electoral, la alfabetización digital y el derecho ciudadano a una información verídica y verificable en Ecuador.</p>
+          </div>
+          <div class="about-info-card">
+            <div class="about-info-icon">💻</div>
+            <h4>100% Código Abierto</h4>
+            <p>El código fuente completo es público bajo Licencia MIT. Cualquiera puede auditar los algoritmos de filtrado, reproducir los scrapers o desplegar su propia instancia para monitorear procesos democráticos.</p>
+          </div>
+          <div class="about-info-card">
+            <div class="about-info-icon">📬</div>
+            <h4>Colaboración y Reportes</h4>
+            <p>¿Encontraste una noticia falsa o quieres aportar mejoras técnicas? Puedes colaborar directamente a través del repositorio oficial de GitHub de la plataforma.</p>
+          </div>
+        </div>
+      </div>
+
       <!-- Footer informativo -->
       <div class="about-footer">
         <p>🇪🇨 <strong>NoAIVerdad</strong> es una herramienta de monitoreo cívico independiente. No está afiliada al CNE, a ningún partido político ni candidato.</p>
@@ -551,6 +581,101 @@
     </div>
   </main>
 
+  <!-- ==========================================================================
+       MODAL DE AUTENTICACIÓN INMEDIATO (APARTADO DE CREAR CUENTA O INICIAR SESIÓN)
+       ========================================================================== -->
+  <div id="modal-auth-overlay" class="auth-modal-overlay active">
+    <div class="auth-modal-card">
+      <div class="auth-modal-header">
+        <img id="auth-modal-logo-img" src="img/LOGO_WHITE.png" alt="NoAIVerdad Logo" class="auth-modal-logo" />
+        <h2 class="auth-modal-title">NoAI<span>Verdad</span></h2>
+        <p class="auth-modal-subtitle">Monitoreo Electoral e Inteligencia Cívica · Ecuador</p>
+      </div>
+
+      <!-- Switch de Pestañas: Crear Cuenta vs Iniciar Sesión -->
+      <div class="auth-modal-tabs">
+        <button id="modal-tab-register" class="auth-modal-tab-btn active" type="button">Crear Cuenta</button>
+        <button id="modal-tab-login" class="auth-modal-tab-btn" type="button">Iniciar Sesión</button>
+      </div>
+
+      <!-- Alerta de Feedback -->
+      <div id="modal-auth-alert" class="auth-modal-alert"></div>
+
+      <!-- FORMULARIO: CREAR CUENTA (REGISTRO) -->
+      <form id="modal-form-register">
+        <div class="auth-modal-form-group">
+          <label for="modal-reg-name" class="auth-modal-label">Nombre Completo o Alias</label>
+          <input type="text" id="modal-reg-name" class="auth-modal-input" placeholder="Ej. Juan Pérez" required autocomplete="name" />
+        </div>
+
+        <div class="auth-modal-form-group">
+          <label for="modal-reg-email" class="auth-modal-label">Correo Electrónico</label>
+          <input type="email" id="modal-reg-email" class="auth-modal-input" placeholder="ejemplo@correo.com" required autocomplete="email" />
+        </div>
+
+        <div class="auth-modal-form-group">
+          <label for="modal-reg-password" class="auth-modal-label">Contraseña (Mínimo 6 caracteres)</label>
+          <input type="password" id="modal-reg-password" class="auth-modal-input" placeholder="••••••••" required minlength="6" autocomplete="new-password" />
+        </div>
+
+        <div class="auth-modal-form-group">
+          <label for="modal-reg-password-confirm" class="auth-modal-label">Confirmar Contraseña</label>
+          <input type="password" id="modal-reg-password-confirm" class="auth-modal-input" placeholder="••••••••" required minlength="6" autocomplete="new-password" />
+        </div>
+
+        <button type="submit" id="modal-btn-submit-reg" class="auth-modal-btn-primary">
+          <span>Crear Cuenta Ciudadana</span>
+        </button>
+      </form>
+
+      <!-- FORMULARIO: INICIAR SESIÓN (LOGIN) -->
+      <form id="modal-form-login" style="display: none;">
+        <div class="auth-modal-form-group">
+          <label for="modal-login-email" class="auth-modal-label">Correo Electrónico</label>
+          <input type="email" id="modal-login-email" class="auth-modal-input" placeholder="ejemplo@correo.com" required autocomplete="email" />
+        </div>
+
+        <div class="auth-modal-form-group">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+            <label for="modal-login-password" class="auth-modal-label" style="margin: 0;">Contraseña</label>
+            <a href="#" id="modal-link-forgot-pass" class="auth-modal-forgot-link">¿Olvidaste tu contraseña?</a>
+          </div>
+          <input type="password" id="modal-login-password" class="auth-modal-input" placeholder="••••••••" required autocomplete="current-password" />
+        </div>
+
+        <button type="submit" id="modal-btn-submit-login" class="auth-modal-btn-primary">
+          <span>Ingresar a NoAIVerdad</span>
+        </button>
+      </form>
+
+      <!-- Separador -->
+      <div class="auth-modal-divider">
+        <span>o continúa con</span>
+      </div>
+
+      <!-- Botón de Google Sign-In -->
+      <button type="button" id="modal-btn-google" class="auth-modal-btn-google">
+        <svg style="width: 18px; height: 18px;" viewBox="0 0 24 24">
+          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+        </svg>
+        <span>Continuar con Google</span>
+      </button>
+
+    </div>
+  </div>
+
+  <!-- Firebase Compat SDK (Auth & Realtime Database) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+
+  <!-- Inicialización de Firebase con Credenciales -->
+  <script src="js/firebase-config.js?v=4.1.1"></script>
+  <script src="js/firebase-sync.js?v=4.3.0"></script>
+
   <!-- Librería JavaScript de Leaflet.js (OpenStreetMap) -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
@@ -558,7 +683,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <!-- Script principal de la aplicación con desactivación de caché -->
-  <script src="js/app.js?v=4.0.2"></script>
+  <script src="js/app.js?v=4.3.0"></script>
 
 </body>
 </html>
