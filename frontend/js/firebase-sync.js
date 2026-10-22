@@ -371,6 +371,99 @@ async function consultarNoticiasFirebase(provincia) {
   }
 }
 
+/** Guarda los videos recién consultados sin sobrescribir las demás secciones. */
+async function guardarYoutubeFirebase(provincia, videos) {
+  const firebase = window.NoAIFirebase;
+  if (!firebase?.db || !firebase?.auth?.currentUser || !Array.isArray(videos)) return false;
+  const clave = normalizarClaveFirebase(provincia);
+  try {
+    await firebase.db.ref(`noticias/${clave}`).update({
+      provincia,
+      youtube_videos: videos,
+      actualizado_en: new Date().toISOString()
+    });
+    console.log(`[Firebase DB] Videos de YouTube guardados para ${provincia}: ${videos.length}`);
+    return true;
+  } catch (_) {
+    console.warn(`[Firebase DB] No se pudieron guardar los videos de YouTube para ${provincia}.`);
+    return false;
+  }
+}
+
+/** Guarda publicaciones públicas de Reddit conservando el histórico existente. */
+async function guardarRedditFirebase(provincia, posts) {
+  const firebase = window.NoAIFirebase;
+  if (!firebase?.db || !firebase?.auth?.currentUser || !Array.isArray(posts)) return false;
+  const clave = normalizarClaveFirebase(provincia);
+  const path = `noticias/${clave}`;
+  try {
+    const snapshot = await firebase.db.ref(`${path}/reddit_posts`).once("value");
+    const previousValue = snapshot.val();
+    const anteriores = Array.isArray(previousValue)
+      ? previousValue
+      : (previousValue && typeof previousValue === "object" ? Object.values(previousValue) : []);
+    const porUrl = new Map();
+    for (const post of [...posts, ...anteriores]) {
+      if (!post || typeof post !== "object") continue;
+      const url = String(post.url || post.link || "").trim();
+      if (url && !porUrl.has(url)) porUrl.set(url, post);
+    }
+    const combinados = [...porUrl.values()].slice(0, 300);
+    await firebase.db.ref(path).update({
+      provincia,
+      reddit_posts: combinados,
+      actualizado_en: new Date().toISOString()
+    });
+    console.log(`[Firebase DB] Publicaciones de Reddit guardadas para ${provincia}: ${combinados.length}`);
+    return true;
+  } catch (_) {
+    console.warn(`[Firebase DB] No se pudieron guardar las publicaciones de Reddit para ${provincia}.`);
+    return false;
+  }
+}
+
+/** Guarda titulares nuevos sin borrar el histórico previamente almacenado. */
+async function guardarNoticiasFirebase(provincia, noticias) {
+  const firebase = window.NoAIFirebase;
+  if (!firebase?.db || !firebase?.auth?.currentUser || !Array.isArray(noticias) || noticias.length === 0) return null;
+  const clave = normalizarClaveFirebase(provincia);
+  const path = `noticias/${clave}`;
+  try {
+    const snapshot = await firebase.db.ref(`${path}/tiempo_real`).once("value");
+    const previousValue = snapshot.val();
+    const anteriores = Array.isArray(previousValue)
+      ? previousValue
+      : (previousValue && typeof previousValue === "object" ? Object.values(previousValue) : []);
+    const combined = [];
+    const seenUrls = new Set();
+    const seenTitles = new Set();
+    for (const item of [...noticias, ...anteriores]) {
+      if (!item || typeof item !== "object") continue;
+      const url = String(item.url || "").trim().toLowerCase();
+      const title = String(item.titulo || "").trim().toLocaleLowerCase("es");
+      if ((url && seenUrls.has(url)) || (title && seenTitles.has(title))) continue;
+      if (url) seenUrls.add(url);
+      if (title) seenTitles.add(title);
+      if (!url && !title) continue;
+      combined.push(item);
+    }
+    combined.sort((a, b) => {
+      const localFirst = Number(b.alcance === "provincial") - Number(a.alcance === "provincial");
+      return localFirst || new Date(b.fecha || 0).getTime() - new Date(a.fecha || 0).getTime();
+    });
+    await firebase.db.ref(path).update({
+      provincia,
+      tiempo_real: combined,
+      actualizado_en: new Date().toISOString()
+    });
+    console.log(`[Firebase DB] Noticias locales guardadas para ${provincia}: ${noticias.length} nuevas; ${combined.length} en el histórico.`);
+    return combined;
+  } catch (error) {
+    console.warn(`[Firebase DB] No se pudieron guardar las noticias de ${provincia}:`, error.message);
+    return null;
+  }
+}
+
 /**
  * 4. Consultar estadísticas del Dashboard en Firebase Realtime Database
  */
@@ -447,6 +540,9 @@ window.NoAIFirebaseSync = {
   cerrarModalAuth,
   initFirebaseAuthUI,
   consultarNoticiasFirebase,
+  guardarNoticiasFirebase,
+  guardarYoutubeFirebase,
+  guardarRedditFirebase,
   consultarDashboardStatsFirebase,
   escucharDashboardFirebase,
   consultarKeywordsFirebase,

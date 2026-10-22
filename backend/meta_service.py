@@ -3,11 +3,14 @@ import requests
 import logging
 import xml.etree.ElementTree as ET
 import unicodedata
+import time
+import threading
 from datetime import datetime, timezone
 from urllib.parse import urlparse
 from concurrent.futures import ThreadPoolExecutor
 from typing import List, Dict, Any
 import firebase_store
+from ads_library import AdLibraryClient
 
 # Configurar logger
 logging.basicConfig(level=logging.INFO)
@@ -55,7 +58,9 @@ TERMINOS_ELECTORALES = [
     "sufragio", "candidato", "candidata", "candidatos", "candidatas",
     "candidatura", "campaña", "presidencial", "consulta popular", "referéndum",
     "escrutinio", "papeleta", "urna", "segunda vuelta", "precandidato",
-    "precandidata", "Consejo Nacional Electoral", "elecciones 2027",
+    "precandidata", "Consejo Nacional Electoral", "elecciones 2027", "política",
+    "político", "presidente de Ecuador", "gobierno de Ecuador", "Asamblea Nacional",
+    "asambleísta", "alcalde", "prefecto", "Noboa", "reforma", "seguridad",
 ]
 
 class UnifiedFeedService:
@@ -83,6 +88,11 @@ class UnifiedFeedService:
         self.grok_api_key = ""
         self.bluesky_handle = ""
         self.bluesky_app_password = ""
+        self._reddit_rss_cache = {}
+        self._reddit_rss_lock = threading.Lock()
+        self._youtube_channel_cache = {}
+        self._youtube_cache_expiry = 0
+        self.ads_library = AdLibraryClient()
         self.reload_api_keys()
         self.scraper = None
 
@@ -96,6 +106,8 @@ class UnifiedFeedService:
         self.x_api_bearer_token = ""
         self.x_api_enabled = False
         self.meta_access_token = keys.get("FB_META_ACCESS_TOKEN", "")
+        if hasattr(self, "ads_library"):
+            self.ads_library.reload_token()
         self.meta_api_enabled = (
             self.META_INTEGRATION_ENABLED
             and keys.get("FB_META_API_ENABLED", "false").lower() == "true"
@@ -120,6 +132,8 @@ class UnifiedFeedService:
             "verificaciones": [],
             "tweets_recientes": [],
             "bluesky_posts": [],
+            "youtube_videos": [],
+            "reddit_posts": [],
             "meta_ads": []
         }
 
@@ -133,8 +147,14 @@ class UnifiedFeedService:
             res["tweets_recientes"] = self.obtener_tweets_reales(provincia)
         elif seccion_lower == "bluesky":
             res["bluesky_posts"] = self.obtener_posts_bluesky(provincia)
+        elif seccion_lower == "youtube":
+            res["youtube_videos"] = self.obtener_videos_youtube(provincia)
+        elif seccion_lower == "reddit":
+            res["reddit_posts"] = self.obtener_posts_reddit(provincia)
         elif seccion_lower == "meta_ads":
-            res["meta_ads"] = self.obtener_anuncios_meta(provincia)
+            # Meta stays dormant until the integration is explicitly enabled.
+            if self.META_INTEGRATION_ENABLED and self.meta_api_enabled:
+                res["meta_ads"] = self.obtener_anuncios_meta(provincia)
         else:
             return self.obtener_feed_completo(provincia)
 
@@ -145,18 +165,27 @@ class UnifiedFeedService:
         Ejecuta las 5 consultas EN PARALELO usando ThreadPoolExecutor.
     (Prensa + revisiones Fact-Check + X cuando hay resultados + Bluesky + páginas Facebook autorizadas)
         """
-        with ThreadPoolExecutor(max_workers=5) as executor:
+        with ThreadPoolExecutor(max_workers=7) as executor:
             future_news = executor.submit(self.obtener_noticias_reales, provincia)
             future_factcheck = executor.submit(self.obtener_verificaciones_con_rating, provincia)
             future_twitter = executor.submit(self.obtener_tweets_reales, provincia)
             future_bluesky = executor.submit(self.obtener_posts_bluesky, provincia)
-            future_meta = executor.submit(self.obtener_anuncios_meta, provincia)
+            future_meta = (
+                executor.submit(self.obtener_anuncios_meta, provincia)
+                if self.META_INTEGRATION_ENABLED and self.meta_api_enabled
+                else None
+            )
+            future_youtube = executor.submit(self.obtener_videos_youtube, provincia)
 
             noticias = future_news.result()
             verificaciones = future_factcheck.result()
             tweets = future_twitter.result()
             bluesky = future_bluesky.result()
-            meta_ads = future_meta.result()
+            meta_ads = future_meta.result() if future_meta else []
+            youtube = future_youtube.result()
+            # Reddit is searched on demand to avoid querying all 24 provinces
+            # during the background collection cycle.
+            reddit = []
 
         return {
             "provincia": provincia,
@@ -164,8 +193,154 @@ class UnifiedFeedService:
             "verificaciones": verificaciones,
             "tweets_recientes": tweets,
             "bluesky_posts": bluesky,
-            "meta_ads": meta_ads
+            "meta_ads": meta_ads,
+            "youtube_videos": youtube,
+            "reddit_posts": reddit
         }
+
+    def obtener_videos_youtube(self, provincia: str) -> List[Dict[str, Any]]:
+        """Collect recent election-related uploads from major Ecuadorian news channels via public YouTube RSS."""
+        channels = {
+            "Ecuavisa": "UCRUV3nUNSc-xpBrTwQOCQQg",
+            "Teleamazonas": "UCCwRtme3lumNRQXMO2EvCvw",
+            "Primicias": "UCe6Gi8_PZp9gcEZb5hTCPdQ",
+            "TC Televisión": "UCMDsWeFwRQ5BRzNLFzpc-ew",
+            "Ecuador TV": "UCfXVS_zw_XmAx8iIiia1IkA",
+        }
+        now = time.time()
+        if now >= self._youtube_cache_expiry:
+            videos = []
+            headers = {"User-Agent": "Mozilla/5.0 (compatible; NoAIVerdad/1.0)"}
+            for name, channel_id in channels.items():
+                try:
+                    feed = requests.get("https://www.youtube.com/feeds/videos.xml", params={"channel_id": channel_id}, headers=headers, timeout=8)
+                    feed.raise_for_status()
+                    root = ET.fromstring(feed.content)
+                    ns = {"atom": "http://www.w3.org/2005/Atom", "yt": "http://www.youtube.com/xml/schemas/2015"}
+                    for entry in root.findall("atom:entry", ns):
+                        title = entry.findtext("atom:title", "", ns)
+                        video_id = entry.findtext("yt:videoId", "", ns)
+                        published = entry.findtext("atom:published", "", ns)
+                        if not video_id:
+                            continue
+                        videos.append({"titulo": title, "url": f"https://www.youtube.com/watch?v={video_id}", "fecha": published, "fuente": name, "canal": name, "anio": _anio_de_fecha(published)})
+                except Exception as exc:
+                    logger.info("[YouTube RSS] No se pudo consultar %s: %s", name, exc)
+            self._youtube_channel_cache = videos
+            # No guardar el vacío como si fuera válido durante 15 minutos: un
+            # bloqueo temporal de RSS no debe ocultar videos provinciales.
+            self._youtube_cache_expiry = now + (900 if videos else 30)
+        return list(self._youtube_channel_cache)
+
+    def obtener_posts_reddit(self, provincia: str) -> List[Dict[str, Any]]:
+        """Busca conversaciones públicas de Reddit con consultas locales amplias."""
+        provincia = str(provincia or "").strip()
+        if not provincia:
+            return []
+
+        cache_key = _texto_normalizado(provincia)
+        now = time.time()
+        with self._reddit_rss_lock:
+            cached = self._reddit_rss_cache.get(cache_key)
+            if cached and cached["expires_at"] > now:
+                return list(cached["posts"])
+
+        localidades = next(
+            (values for nombre, values in PROVINCIA_LOCALIDADES.items()
+             if _texto_normalizado(nombre) == cache_key),
+            [provincia],
+        )
+        # Reddit RSS puede interpretar de forma restrictiva comillas, OR y
+        # paréntesis. Usar frases sencillas mejora la cobertura y además
+        # permite incluir asuntos electorales discutidos sin nombrar la ciudad
+        # en el título. La provincia se conserva como foco de búsqueda.
+        consultas = list(dict.fromkeys(
+            f"{localidad} {tema}"
+            for localidad in localidades
+            for tema in (
+                "elecciones Ecuador", "politica Ecuador", "CNE Ecuador",
+                "candidatos Ecuador", "presidente Ecuador",
+            )
+        ))
+        consultas.extend([
+            f"elecciones Ecuador {provincia}",
+            f"elecciones Ecuador {provincia} 2027",
+            f"politica ecuatoriana {provincia}",
+        ])
+        consultas = list(dict.fromkeys(consultas))
+        headers = {
+            "User-Agent": "NoAIVerdad/1.0 (public Reddit RSS reader)",
+            "Accept": "application/atom+xml, application/rss+xml, application/xml, text/xml",
+        }
+        posts_por_url = {}
+        election_terms = [
+            "eleccion", "electoral", "cne", "candidat", "campan", "vot",
+            "sufrag", "urna", "papeleta", "prefect", "alcald", "concej",
+            "politic", "president", "noboa", "asamblea", "referendum",
+            "consulta popular", "escrutinio", "debate electoral",
+        ]
+        def buscar_rss(query: str):
+            try:
+                response = requests.get(
+                    "https://www.reddit.com/search.rss",
+                    params={"q": query, "sort": "new", "limit": 100},
+                    headers=headers,
+                    timeout=10,
+                )
+                response.raise_for_status()
+                root = ET.fromstring(response.content)
+                namespace = "{http://www.w3.org/2005/Atom}"
+                encontrados = []
+                for entry in root.findall(f"{namespace}entry"):
+                    title_node = entry.find(f"{namespace}title")
+                    link_node = entry.find(f"{namespace}link")
+                    date_node = entry.find(f"{namespace}updated")
+                    if date_node is None:
+                        date_node = entry.find(f"{namespace}published")
+                    summary_node = entry.find(f"{namespace}content")
+                    if summary_node is None:
+                        summary_node = entry.find(f"{namespace}summary")
+                    titulo = (title_node.text or "").strip() if title_node is not None else ""
+                    url = link_node.get("href", "") if link_node is not None else ""
+                    fecha = (date_node.text or "").strip() if date_node is not None else ""
+                    summary = (summary_node.text or "").strip() if summary_node is not None else ""
+                    if not titulo or not url or urlparse(url).hostname not in {"reddit.com", "www.reddit.com", "old.reddit.com"}:
+                        continue
+                    normalized_text = _texto_normalizado(f"{titulo} {summary}")
+                    if not any(term in normalized_text for term in election_terms):
+                        continue
+                    categories = entry.findall(f"{namespace}category")
+                    subreddit = next((item.get("term", "") for item in categories if item.get("term", "").startswith("r/")), "Reddit")
+                    clean_summary = re.sub(r"<[^>]*>", " ", summary)
+                    clean_summary = re.sub(r"\s+", " ", clean_summary).strip()
+                    encontrados.append({
+                        "titulo": titulo,
+                        "text": clean_summary,
+                        "url": url,
+                        "fecha": fecha,
+                        "fuente": subreddit,
+                        "anio": _anio_de_fecha(fecha),
+                        "alcance": "provincial",
+                        "provincia": provincia,
+                    })
+                return encontrados
+            except Exception as exc:
+                logger.info("[Reddit RSS] Falló consulta '%s': %s", query, exc)
+                return []
+
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            for encontrados in executor.map(buscar_rss, consultas):
+                for post in encontrados:
+                    posts_por_url.setdefault(post["url"], post)
+
+        posts = sorted(posts_por_url.values(), key=lambda post: post.get("fecha", ""), reverse=True)[:100]
+        with self._reddit_rss_lock:
+            self._reddit_rss_cache[cache_key] = {
+                "posts": posts,
+                "expires_at": time.time() + (600 if posts else 60),
+            }
+        logger.info("[Reddit RSS] %s publicaciones públicas electorales para %s.", len(posts), provincia)
+        return posts
 
     # =========================================================================
     # 1. NOTICIAS EN TIEMPO REAL (GNews API + Google News RSS en vivo)
@@ -204,56 +379,101 @@ class UnifiedFeedService:
             except Exception as e:
                 logger.error(f"[GNews API] Error: {e}")
 
-        # Intento B: Si GNews no devuelve datos, usar Google News RSS en vivo
-        if not noticias:
-            noticias = self._obtener_google_news_rss(provincia)
+        # Combinar GNews con búsquedas locales de Google News para ampliar la
+        # cobertura y evitar que todas las provincias compartan los mismos 10 titulares.
+        noticias.extend(self._obtener_google_news_rss(provincia))
+
+        # Deduplicar fuentes combinadas sin descartar titulares antiguos válidos.
+        merged = []
+        seen = set()
+        for item in noticias:
+            identity = str(item.get("url") or item.get("titulo") or "").strip().lower()
+            if identity and identity not in seen:
+                seen.add(identity)
+                merged.append(item)
+        noticias = merged
+
+        # El CNE es una fuente primaria y se añade a la prensa agregada.
+        known_urls = {item.get("url") for item in noticias if item.get("url")}
+        noticias.extend(item for item in self._obtener_cne_rss() if item.get("url") not in known_urls)
 
         return noticias
 
-    def _obtener_google_news_rss(self, provincia: str) -> List[Dict[str, Any]]:
-        """Extrae noticias reales en tiempo real del RSS de Google News Ecuador sin límites de cuota."""
-        noticias_rss = []
-        queries = [
-            f"elecciones {provincia} Ecuador", 
-            f"elecciones Ecuador {provincia}", 
-            f"{provincia} Ecuador noticias",
-            "elecciones Ecuador"
-        ]
+    def _obtener_cne_rss(self) -> List[Dict[str, Any]]:
+        """Fetch official CNE newsroom posts through the site's WordPress RSS feed."""
+        for rss_url in ("https://www.cne.gob.ec/category/noticias/feed/", "https://www.cne.gob.ec/feed/"):
+            try:
+                response = requests.get(rss_url, headers={"User-Agent": "NoAIVerdad/1.0"}, timeout=8)
+                if response.status_code != 200:
+                    continue
+                root = ET.fromstring(response.content)
+                result = []
+                for item in root.findall(".//item")[:30]:
+                    title = item.findtext("title", "")
+                    link = item.findtext("link", "")
+                    pub_date = item.findtext("pubDate", "")
+                    if title and link:
+                        result.append({"titulo": title, "url": link, "fecha": pub_date, "fuente": "CNE Ecuador", "anio": _anio_de_fecha(pub_date)})
+                if result:
+                    return result
+            except Exception as exc:
+                logger.info("[CNE RSS] No se pudo consultar el feed: %s", exc)
+        return []
 
+    def _obtener_google_news_rss(self, provincia: str) -> List[Dict[str, Any]]:
+        """Busca titulares electorales en las principales localidades provinciales."""
+        localidades = PROVINCIA_LOCALIDADES.get(provincia, [provincia])
+        queries = list(dict.fromkeys(
+            query
+            for localidad in localidades
+            for query in (
+                f"elecciones 2027 {localidad} Ecuador",
+                f"elecciones {localidad} Ecuador",
+                f"CNE {localidad} elecciones",
+                f"candidatos {localidad} elecciones Ecuador",
+            )
+        ))
         headers = {
             "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
         }
 
-        for q in queries:
-            rss_url = f"https://news.google.com/rss/search?q={requests.utils.quote(q)}&hl=es-419&gl=EC&ceid=EC:es-419"
+        def buscar(q: str):
             try:
-                logger.info(f"[Google News RSS] Consultando feed en vivo: '{q}'...")
-                resp = requests.get(rss_url, headers=headers, timeout=6)
-                if resp.status_code == 200:
-                    root = ET.fromstring(resp.content)
-                    items = root.findall(".//item")
-                    for item in items[:10]:
-                        title = item.findtext("title", "")
-                        link = item.findtext("link", "#")
-                        pubDate = item.findtext("pubDate", "")
-                        source_elem = item.find("source")
-                        fuente = source_elem.text if source_elem is not None else "Prensa Ecuador"
-
-                        if not title or not link or link == "#":
-                            continue
-                        noticias_rss.append({
-                            "titulo": title,
-                            "url": link,
-                            "fecha": pubDate,
-                            "fuente": fuente,
-                            "anio": _anio_de_fecha(pubDate)
+                rss_url = "https://news.google.com/rss/search"
+                logger.info("[Google News RSS] Consulta local %s: '%s'.", provincia, q)
+                resp = requests.get(rss_url, params={"q": q, "hl": "es-419", "gl": "EC", "ceid": "EC:es-419"}, headers=headers, timeout=8)
+                resp.raise_for_status()
+                root = ET.fromstring(resp.content)
+                result = []
+                for item in root.findall(".//item")[:10]:
+                    title = item.findtext("title", "")
+                    link = item.findtext("link", "")
+                    pub_date = item.findtext("pubDate", "")
+                    source_elem = item.find("source")
+                    fuente = source_elem.text if source_elem is not None else "Google News"
+                    if title and link:
+                        result.append({
+                            "titulo": title, "url": link, "fecha": pub_date,
+                            "fuente": fuente, "anio": _anio_de_fecha(pub_date),
+                            "alcance": "provincial", "provincia": provincia,
                         })
-                    if noticias_rss:
-                        break
+                return result
             except Exception as e:
-                logger.error(f"[Google News RSS] Error en RSS: {e}")
+                logger.info("[Google News RSS] Falló '%s' para %s: %s", q, provincia, e)
+                return []
 
-        return noticias_rss
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            feeds = executor.map(buscar, queries)
+            noticias_rss = [item for feed in feeds for item in feed]
+
+        unique = {}
+        for item in noticias_rss:
+            identity = (item.get("titulo") or "").strip().casefold()
+            if identity:
+                unique.setdefault(identity, item)
+        result = list(unique.values())
+        result.sort(key=lambda item: item.get("fecha", ""), reverse=True)
+        return result[:80]
 
     # =========================================================================
     # 2. INFORMACIÓN CÍVICA Y VERIFICACIONES (Google Fact Check Tools API)
@@ -415,56 +635,8 @@ class UnifiedFeedService:
     # 5. PUBLICACIONES Y ANUNCIOS EN META (FACEBOOK / INSTAGRAM POSTS & ADS)
     # =========================================================================
     def obtener_anuncios_meta(self, provincia: str) -> List[Dict[str, Any]]:
-        """Obtiene publicaciones reales de páginas de Facebook administradas por la cuenta."""
-        posts_meta = []
-        if not self.meta_api_enabled or not self.meta_access_token:
-            return posts_meta
-
-        try:
-            accounts = requests.get(
-                f"https://graph.facebook.com/{self.META_GRAPH_API_VERSION}/me/accounts",
-                params={"fields": "id,name,access_token"},
-                headers={"Authorization": f"Bearer {self.meta_access_token}"},
-                timeout=8,
-            )
-            accounts.raise_for_status()
-            page_accounts = accounts.json().get("data", [])
-            logger.info("[Meta Graph API] Token válido; páginas accesibles: %d.", len(page_accounts))
-            for account in page_accounts:
-                page_id = account.get("id")
-                page_name = account.get("name", "")
-                page_token = account.get("access_token") or self.meta_access_token
-                if not page_id:
-                    continue
-
-                response = requests.get(
-                    f"https://graph.facebook.com/{self.META_GRAPH_API_VERSION}/{page_id}/published_posts",
-                    params={
-                        "limit": 25,
-                        "fields": "message,story,created_time,permalink_url",
-                    },
-                    headers={"Authorization": f"Bearer {page_token}"},
-                    timeout=8,
-                )
-                response.raise_for_status()
-                for post in response.json().get("data", []):
-                    message = (post.get("message") or post.get("story") or "").strip()
-                    permalink = post.get("permalink_url", "")
-                    created = post.get("created_time", "")
-                    if not message or not permalink:
-                        continue
-                    if _texto_normalizado(provincia) not in _texto_normalizado(message):
-                        continue
-                    posts_meta.append({
-                        "text": message,
-                        "page_name": page_name,
-                        "date": created,
-                        "link": permalink,
-                        "anio": _anio_de_fecha(created),
-                    })
-            logger.info("[Meta Graph API] Publicaciones coincidentes con %s: %d.", provincia, len(posts_meta))
-        except Exception:
-            # Requests' HTTPError text can include URL query parameters. Never log it.
-            logger.warning("[Meta Graph API] No se pudieron obtener publicaciones (red o permisos).")
-
-        return posts_meta
+        """Obtiene anuncios políticos de Meta Ad Library con inversión y alcance estimados."""
+        if not self.META_INTEGRATION_ENABLED or not self.meta_api_enabled:
+            return []
+        ads, _estado = self.ads_library.por_provincia(provincia)
+        return ads

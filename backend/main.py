@@ -1,6 +1,7 @@
 import os
 import asyncio
 from contextlib import asynccontextmanager
+from typing import Optional, List, Dict, Any
 from fastapi import FastAPI, Query, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
@@ -49,7 +50,7 @@ async def lifespan(_app):
 # Inicializar aplicación FastAPI
 app = FastAPI(
     title="NoAIVerdad - Backend Unificado (Noticias + Fact-Checking + X Scraper)",
-    description="API en tiempo real para el monitoreo cívico de desinformación electoral en Ecuador por provincia, integrando GNews/RSS, Google Fact Check y X (Twitter).",
+    description="API para monitoreo electoral en Ecuador por provincia con CNE, GNews/Google News RSS, YouTube, Reddit y Google Fact Check.",
     version="4.1.0",
     lifespan=lifespan
 )
@@ -67,6 +68,13 @@ app.add_middleware(
 unified_service = UnifiedFeedService()
 
 
+def nombre_provincia(valor: Optional[str]) -> Optional[str]:
+    """Normalize frontend province ids; None denotes a national view."""
+    if not valor or valor.strip().lower() in {"todas", "ecuador", "ecuador (todas)"}:
+        return None
+    return valor.strip().replace("_", " ")
+
+
 @app.get("/")
 def read_root():
     """Ruta raíz para verificación de estado del servidor."""
@@ -75,9 +83,13 @@ def read_root():
         "estado": "Activo",
         "servicios": {
             "gnews_rss": True,
+            "cne": True,
+            "youtube_rss": True,
+            "reddit_rss": True,
             "google_fact_check": bool(unified_service.fact_check_api_key),
             "x_api": bool(unified_service.x_api_enabled and unified_service.x_api_bearer_token),
-            "x_ntscraper_fallback": False
+            "x_ntscraper_fallback": False,
+            "meta_ad_library": unified_service.ads_library.configurado,
         },
         "documentacion": "/docs"
     }
@@ -91,7 +103,7 @@ def obtener_noticias_y_tweets_por_provincia(
     ),
     seccion: str = Query(
         None,
-        description="Sección a consultar bajo demanda (noticias, verificaciones, tweets, bluesky)"
+        description="Sección a consultar bajo demanda (noticias, verificaciones, bluesky, youtube, reddit público RSS)"
     )
 ):
     """
@@ -102,6 +114,8 @@ def obtener_noticias_y_tweets_por_provincia(
     - `seccion=verificaciones`: Google Fact Check
     - `seccion=tweets`: Publicaciones en X / Twitter
     - `seccion=bluesky`: Publicaciones en vivo en Bluesky
+    - `seccion=youtube`: Videos electorales de canales ecuatorianos en YouTube
+    - `seccion=reddit`: Búsqueda pública por provincia mediante feeds RSS; no requiere credenciales
     """
     if not provincia or not provincia.strip():
         raise HTTPException(status_code=400, detail="El parámetro 'provincia' es obligatorio.")
@@ -122,7 +136,52 @@ def obtener_noticias_y_tweets_por_provincia(
         ) from e
 
 
-from typing import Optional, List, Dict, Any
+@app.get("/api/ads/diagnostico")
+def diagnostico_meta_ads():
+    """Estado de Meta Ad Library, sin devolver ni registrar el token."""
+    if not unified_service.META_INTEGRATION_ENABLED or not unified_service.meta_api_enabled:
+        return {"configurado": False, "habilitado": False, "ok": False,
+                "mensaje": "La integración de Meta está temporalmente desactivada."}
+    return unified_service.ads_library.diagnostico()
+
+
+@app.get("/api/ads/mapa")
+def metricas_mapa_meta():
+    """Inversión, impresiones, anuncios y anunciantes estimados por provincia."""
+    if not unified_service.META_INTEGRATION_ENABLED or not unified_service.meta_api_enabled:
+        return {"ok": False, "habilitado": False, "provincias": [],
+                "mensaje": "La integración de Meta está temporalmente desactivada."}
+    return unified_service.ads_library.metricas_por_provincia()
+
+
+@app.get("/api/ads/top-gastadores")
+def top_gastadores_meta(provincia: Optional[str] = Query(None), limite: int = Query(10, ge=1, le=200)):
+    """Resumen y anunciantes ordenados por inversión estimada (rangos publicados por Meta)."""
+    if not unified_service.META_INTEGRATION_ENABLED or not unified_service.meta_api_enabled:
+        return {"ok": False, "habilitado": False, "anunciantes": [],
+                "mensaje": "La integración de Meta está temporalmente desactivada."}
+    return unified_service.ads_library.top_gastadores(nombre_provincia(provincia), limite)
+
+
+@app.get("/api/ads/comparar")
+def comparar_gastos_meta(provincias: str = Query(...)):
+    if not unified_service.META_INTEGRATION_ENABLED or not unified_service.meta_api_enabled:
+        return {"ok": False, "habilitado": False, "comparaciones": [],
+                "mensaje": "La integración de Meta está temporalmente desactivada."}
+    alcances = [nombre_provincia(p) for p in provincias.split(",") if p.strip()][:3]
+    if len(alcances) < 2:
+        raise HTTPException(status_code=400, detail="Indica al menos dos provincias o alcances separados por coma.")
+    return unified_service.ads_library.comparar(alcances)
+
+
+@app.get("/api/ads/textos-duplicados")
+def textos_duplicados_meta(provincia: Optional[str] = Query(None), limite: int = Query(10, ge=1, le=50)):
+    if not unified_service.META_INTEGRATION_ENABLED or not unified_service.meta_api_enabled:
+        return {"ok": False, "habilitado": False, "grupos": [],
+                "mensaje": "La integración de Meta está temporalmente desactivada."}
+    return unified_service.ads_library.textos_duplicados(nombre_provincia(provincia), limite)
+
+
 from datetime import datetime
 
 @app.get("/api/dashboard/stats")
@@ -136,6 +195,8 @@ def obtener_estadisticas_dashboard(provincia: Optional[str] = Query(None)):
             "fact_checks": len(feed.get("verificaciones", [])),
             "redes_sociales_x": 0,
             "bluesky_feed": len(feed.get("bluesky_posts", [])),
+            "youtube_videos": len(feed.get("youtube_videos", [])),
+            "reddit_posts": len(feed.get("reddit_posts", [])),
             "meta_ads": len(feed.get("meta_ads", [])),
         }
         total = sum(counts.values())
@@ -161,7 +222,7 @@ def obtener_estadisticas_dashboard(provincia: Optional[str] = Query(None)):
         "total_publicaciones": 0,
         "distribucion_fuentes": {
             "prensa_tiempo_real": 0, "fact_checks": 0, "redes_sociales_x": 0,
-            "bluesky_feed": 0, "meta_ads": 0,
+            "bluesky_feed": 0, "meta_ads": 0, "youtube_videos": 0, "reddit_posts": 0,
         },
         "top_provincias_cobertura": [],
         "resumen_general": "Aún no hay estadísticas guardadas por el colector.",

@@ -11,7 +11,7 @@ PROVINCES = [
     "Santa Elena", "Santo Domingo de los Tsáchilas", "Sucumbíos", "Tungurahua",
     "Zamora Chinchipe",
 ]
-SECTIONS = ("tiempo_real", "verificaciones", "tweets_recientes", "bluesky_posts", "meta_ads")
+SECTIONS = ("tiempo_real", "verificaciones", "tweets_recientes", "bluesky_posts", "meta_ads", "youtube_videos", "reddit_posts")
 
 
 def _key(value):
@@ -38,6 +38,7 @@ def generar_datos_completos(output_path="firebase_seed_data.json"):
                 "distribucion_fuentes": {
                     "prensa_tiempo_real": 0, "fact_checks": 0, "redes_sociales_x": 0,
                     "bluesky_feed": 0, "meta_ads": 0,
+                    "youtube_videos": 0, "reddit_posts": 0,
                 },
                 "top_provincias_cobertura": [],
                 "resumen_general": "Sin datos recolectados todavía.",

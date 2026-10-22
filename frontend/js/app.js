@@ -11,7 +11,7 @@ const state = {
   chartsInicializados: false,
   charts: {},
   datosActuales: null,       // Último feed leído desde Firebase
-  filtroSeccion: "noticias", // 'noticias' | 'verificaciones' | 'tweets' | 'bluesky'
+  filtroSeccion: "noticias", // 'noticias' | 'verificaciones' | 'tweets' | 'bluesky' | 'reddit'
   filtroAnio: "todos",        // 'todos' | '2026' | '2025' | '2024' | '2023'
   feedCache: {}              // Cache client-side: feedCache[provincia][seccion]
 };
@@ -63,7 +63,8 @@ function initThemeSwitcher() {
   const btnTheme = document.getElementById("btn-toggle-theme");
   
   // Obtener tema guardado o usar oscuro por defecto
-  const savedTheme = localStorage.getItem("noai_theme") || "dark";
+  // Start dark after this update even if an older build saved the light theme.
+  const savedTheme = localStorage.getItem("noai_theme_v3") || "dark";
   aplicarTema(savedTheme);
 
   if (btnTheme) {
@@ -77,7 +78,7 @@ function initThemeSwitcher() {
 
 function aplicarTema(theme) {
   document.documentElement.setAttribute("data-theme", theme);
-  localStorage.setItem("noai_theme", theme);
+  localStorage.setItem("noai_theme_v3", theme);
 
   const btnTheme = document.getElementById("btn-toggle-theme");
   const logoImg = document.getElementById("brand-logo-img");
@@ -290,6 +291,7 @@ function initNavListeners() {
       }
     });
   }
+
 }
 
 /**
@@ -438,7 +440,9 @@ function obtenerNombreSeccion(seccion) {
     noticias: "Noticias de Prensa",
     verificaciones: "Fact-Check / Posibles Falsas",
     tweets: "X (Twitter)",
-    bluesky: "Bluesky"
+    bluesky: "Bluesky",
+    reddit: "Reddit (búsqueda pública)",
+    youtube: "YouTube (Canales nacionales)"
   };
   return nombres[seccion] || seccion;
 }
@@ -455,12 +459,14 @@ async function cargarNoticiasAlmacenadas(provincia, seccion = state.filtroSeccio
 
   // Si la sección ya fue descargada en memoria, cargar de inmediato
   const cached = state.feedCache[provincia]?.[seccion];
-  if (cached && (
+  if (!['youtube', 'noticias', 'reddit'].includes(seccion) && cached && (
       (cached.tiempo_real && cached.tiempo_real.length > 0) ||
       (cached.verificaciones && cached.verificaciones.length > 0) ||
       (cached.tweets_recientes && cached.tweets_recientes.length > 0) ||
-      (cached.bluesky_posts && cached.bluesky_posts.length > 0) ||
-      (cached.bluesky_posts_nacionales && cached.bluesky_posts_nacionales.length > 0)
+      tieneRegistros(cached.bluesky_posts) ||
+      tieneRegistros(cached.bluesky_posts_nacionales) ||
+      tieneRegistros(cached.reddit_posts) ||
+      (cached.youtube_videos && cached.youtube_videos.length > 0)
   )) {
     console.log(`[Cache Hit] Carga instantánea de '${seccion}' para ${provincia}`);
     state.datosActuales = cached;
@@ -471,10 +477,54 @@ async function cargarNoticiasAlmacenadas(provincia, seccion = state.filtroSeccio
   sidebarContent.innerHTML = `
     <div class="state-box">
       <div class="spinner"></div>
-      <div class="state-title">Cargando ${escaparHtml(obtenerNombreSeccion(seccion))}...</div>
-      <div class="state-desc">Leyendo los datos guardados de <strong>${escaparHtml(provincia)}</strong> en Firebase.</div>
+      <div class="state-title">Buscando ${escaparHtml(obtenerNombreSeccion(seccion))}...</div>
     </div>
   `;
+
+  // Buscar titulares electorales recientes y locales para esta provincia.
+  // Firebase conserva el histórico, pero no impide actualizar la búsqueda.
+  if (seccion === "noticias") {
+    const noticiasEnVivo = await consultarNoticiasEnVivo(provincia);
+    if (noticiasEnVivo?.length) {
+      const historicoGuardado = await window.NoAIFirebaseSync?.guardarNoticiasFirebase(provincia, noticiasEnVivo);
+      const feedEnVivo = {
+        provincia,
+        tiempo_real: historicoGuardado?.length ? historicoGuardado : noticiasEnVivo,
+        actualizado_en: new Date().toISOString()
+      };
+      state.feedCache[provincia][seccion] = feedEnVivo;
+      state.datosActuales = feedEnVivo;
+      renderizarResultados(feedEnVivo);
+      return;
+    }
+  }
+
+  // YouTube se consulta en vivo primero; Firebase es una copia guardada,
+  // no un requisito para que aparezcan resultados.
+  if (seccion === "youtube") {
+    const videosEnVivo = await consultarYoutubeEnVivo(provincia);
+    if (videosEnVivo !== null) {
+      const feedEnVivo = { provincia, youtube_videos: videosEnVivo };
+      state.feedCache[provincia][seccion] = feedEnVivo;
+      state.datosActuales = feedEnVivo;
+      renderizarResultados(feedEnVivo);
+      await window.NoAIFirebaseSync?.guardarYoutubeFirebase(provincia, videosEnVivo);
+      return;
+    }
+  }
+
+  // Reddit se busca mediante RSS público, sin OAuth ni credenciales.
+  if (seccion === "reddit") {
+    const postsReddit = await consultarRedditEnVivo(provincia);
+    if (postsReddit?.length) {
+      const feedReddit = { provincia, reddit_posts: postsReddit };
+      state.feedCache[provincia][seccion] = feedReddit;
+      state.datosActuales = feedReddit;
+      renderizarResultados(feedReddit);
+      await window.NoAIFirebaseSync?.guardarRedditFirebase(provincia, postsReddit);
+      return;
+    }
+  }
 
   // 1. Intentar consultar primero en Firebase Realtime Database
   if (window.NoAIFirebaseSync) {
@@ -482,11 +532,12 @@ async function cargarNoticiasAlmacenadas(provincia, seccion = state.filtroSeccio
       const fbData = await window.NoAIFirebaseSync.consultarNoticiasFirebase(provincia);
       const seccionFirebase = {
         noticias: "tiempo_real", verificaciones: "verificaciones", tweets: "tweets_recientes",
-        bluesky: "bluesky_posts"
+        bluesky: "bluesky_posts", reddit: "reddit_posts", youtube: "youtube_videos"
       }[seccion];
       const tieneDatos = fbData && seccionFirebase && (
-        (Array.isArray(fbData[seccionFirebase]) && fbData[seccionFirebase].length > 0) ||
-        (seccion === "bluesky" && Array.isArray(fbData.bluesky_posts_nacionales) && fbData.bluesky_posts_nacionales.length > 0)
+        tieneRegistros(fbData[seccionFirebase]) ||
+        (seccion === "bluesky" && tieneRegistros(fbData.bluesky_posts_nacionales)) ||
+        (seccion === "reddit" && tieneRegistros(fbData.reddit_posts))
       );
       if (tieneDatos) {
         console.log(`[Firebase Realtime DB] Datos obtenidos de la base de datos para: ${provincia}`);
@@ -503,10 +554,74 @@ async function cargarNoticiasAlmacenadas(provincia, seccion = state.filtroSeccio
   state.datosActuales = null;
   sidebarContent.innerHTML = `
     <div class="state-box">
-      <div class="state-title">Aún no hay datos guardados</div>
-      <div class="state-desc">El colector del servidor debe consultar las fuentes y guardar sus resultados en Firebase. Esta aplicación solo muestra los datos almacenados.</div>
+      <div class="state-title">No hay noticias por el momento.</div>
     </div>
   `;
+}
+
+async function consultarNoticiasEnVivo(provincia) {
+  const bases = [window.location.origin, window.NOAI_API_BASE_URL, "http://localhost:8000"]
+    .filter((value, index, all) => value && all.indexOf(value) === index);
+  for (const base of bases) {
+    try {
+      const query = new URLSearchParams({ provincia, seccion: "noticias" });
+      const response = await fetch(`${base.replace(/\/$/, "")}/api/noticias?${query}`, {
+        cache: "no-store",
+        signal: AbortSignal.timeout(25000)
+      });
+      if (!response.ok) continue;
+      const feed = await response.json();
+      if (Array.isArray(feed.tiempo_real) && feed.tiempo_real.length) return feed.tiempo_real;
+    } catch (_) {
+      // Prueba el siguiente origen; si ninguno responde, muestra el histórico de Firebase.
+    }
+  }
+  return null;
+}
+
+async function consultarRedditEnVivo(provincia) {
+  const bases = [window.location.origin, window.NOAI_API_BASE_URL, "http://localhost:8000"]
+    .filter((value, index, all) => value && all.indexOf(value) === index);
+  for (const base of bases) {
+    try {
+      const query = new URLSearchParams({ provincia, seccion: "reddit" });
+      const response = await fetch(`${base.replace(/\/$/, "")}/api/noticias?${query}`, {
+        cache: "no-store",
+        signal: AbortSignal.timeout(30000)
+      });
+      if (!response.ok) continue;
+      const feed = await response.json();
+      const posts = normalizarListaReddit(feed.reddit_posts);
+      if (posts.length) return posts;
+    } catch (_) {
+      // Intenta el siguiente backend y luego recurre al histórico de Firebase.
+    }
+  }
+  return null;
+}
+
+async function consultarYoutubeEnVivo(provincia) {
+  // In the desktop app, query Electron's bundled RSS endpoint first. A local
+  // backend may answer successfully with an empty list while its feed source
+  // is unavailable; that must not prevent trying the other live source.
+  const bases = [window.location.origin, window.NOAI_API_BASE_URL, "http://localhost:8000"]
+    .filter((value, index, all) => value && all.indexOf(value) === index);
+  for (const base of bases) {
+    try {
+      const query = new URLSearchParams({ provincia, seccion: "youtube" });
+      const response = await fetch(`${base.replace(/\/$/, "")}/api/noticias?${query}`, {
+        cache: "no-store",
+        signal: AbortSignal.timeout(30000)
+      });
+      if (!response.ok) continue;
+      const feed = await response.json();
+      if (!Array.isArray(feed.youtube_videos)) continue;
+      if (feed.youtube_videos.length > 0) return feed.youtube_videos;
+    } catch (_) {
+      // Prueba el siguiente origen. Si ninguno responde, se usa la copia guardada.
+    }
+  }
+  return null;
 }
 
 /**
@@ -527,6 +642,39 @@ function itemCumpleAnio(item, filtroAnio) {
     return parseInt(anio) <= 2023;
   }
   return anio === filtroAnio;
+}
+
+function normalizarListaBluesky(value) {
+  const items = Array.isArray(value)
+    ? value
+    : (value && typeof value === "object" ? Object.values(value) : []);
+  return items.filter(item => item && typeof item === "object").map(item => ({
+    ...item,
+    text: item.text || item.titulo || item.texto || item.description || "",
+    link: item.link || item.url || item.uri || "#",
+    date: item.date || item.fecha || item.createdAt || item.timestamp || "",
+    author: item.author || item.autor || {}
+  }));
+}
+
+function normalizarListaReddit(value) {
+  const items = Array.isArray(value)
+    ? value
+    : (value && typeof value === "object" ? Object.values(value) : []);
+  return items.filter(item => item && typeof item === "object").map(item => ({
+    ...item,
+    titulo: item.titulo || item.title || "Publicación de Reddit",
+    text: item.text || item.selftext || item.description || "",
+    url: item.url || item.link || "#",
+    fecha: item.fecha || item.date || item.createdAt || item.published || "",
+    fuente: item.fuente || item.subreddit || "Reddit"
+  }));
+}
+
+function tieneRegistros(value) {
+  return Array.isArray(value)
+    ? value.length > 0
+    : Boolean(value && typeof value === "object" && Object.keys(value).length > 0);
 }
 
 function formatearFechaSafe(fechaStr) {
@@ -552,8 +700,17 @@ function renderizarResultados(data) {
   const rawVerificaciones = data.verificaciones || [];
   // X está desactivado y no debe aparecer ni desde caché antigua de Firebase.
   const rawTweets = [];
-  const rawBluesky = data.bluesky_posts || [];
-  const rawBlueskyNacionales = data.bluesky_posts_nacionales || [];
+  // Acepta tanto arrays como objetos indexados, y conserva el archivo anterior
+  // que se guardó bajo bluesky_posts_nacionales para que no quede oculto.
+  const rawBluesky = [
+    ...normalizarListaBluesky(data.bluesky_posts),
+    ...normalizarListaBluesky(data.posts_bluesky),
+    ...normalizarListaBluesky(data.bluesky),
+    ...normalizarListaBluesky(data.bluesky_posts_nacionales)
+  ];
+  // Reddit queda oculto hasta nuevo aviso, incluidos los datos guardados.
+  const rawReddit = [];
+  const rawYoutube = data.youtube_videos || [];
 
   const noticias = (seccion === "todas" || seccion === "noticias")
     ? rawNoticias.filter(item => itemCumpleAnio(item, anio))
@@ -568,14 +725,22 @@ function renderizarResultados(data) {
     : [];
 
   const blueskyPosts = (seccion === "todas" || seccion === "bluesky")
-    ? rawBluesky.filter(item => itemCumpleAnio(item, anio))
+    ? [...new Map(rawBluesky
+        .filter(item => itemCumpleAnio(item, anio))
+        .map(item => [item.link !== "#" ? item.link : `${item.date}|${item.text}`, item])).values()]
+    : [];
+  const blueskyNationalPosts = [];
+
+  const redditPosts = (seccion === "todas" || seccion === "reddit")
+    ? [...new Map(rawReddit
+        .filter(item => itemCumpleAnio(item, anio))
+        .map(item => [item.url, item])).values()]
     : [];
 
-  const blueskyNationalPosts = (seccion === "todas" || seccion === "bluesky")
-    ? rawBlueskyNacionales.filter(item => itemCumpleAnio(item, anio))
-    : [];
+  const youtubeVideos = (seccion === "todas" || seccion === "youtube")
+    ? rawYoutube.filter(item => itemCumpleAnio(item, anio)) : [];
 
-  const totalElementos = noticias.length + verificaciones.length + tweets.length + blueskyPosts.length + blueskyNationalPosts.length;
+  const totalElementos = noticias.length + verificaciones.length + tweets.length + blueskyPosts.length + blueskyNationalPosts.length + redditPosts.length + youtubeVideos.length;
 
   if (totalElementos === 0) {
     sidebarContent.innerHTML = `
@@ -583,14 +748,20 @@ function renderizarResultados(data) {
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
         </svg>
-        <div class="state-title">Sin resultados para los filtros aplicados</div>
-        <div class="state-desc">No se encontraron publicaciones en <strong>${escaparHtml(data.provincia)}</strong> para la sección <em>"${escaparHtml(seccion)}"</em> y año <em>"${escaparHtml(anio)}"</em>.<br><br>Prueba seleccionando <strong>"Todas las secciones"</strong> o <strong>"Todos los años"</strong>.</div>
+        <div class="state-title">No hay noticias por el momento.</div>
       </div>
     `;
     return;
   }
 
   let html = "";
+
+  if (youtubeVideos.length) {
+    html += `<div class="section-title-container"><h3>Videos electorales relacionados con ${escaparHtml(data.provincia || "esta provincia")} (${youtubeVideos.length})</h3></div>`;
+    youtubeVideos.forEach((video) => {
+      html += `<div class="item-card" style="border-left:4px solid #dc2626"><div class="item-card-header"><strong>${escaparHtml(video.canal || video.fuente || "YouTube")}</strong><span>${escaparHtml(formatearFechaSafe(video.fecha))}</span></div><div class="item-title">${escaparHtml(video.titulo)}</div><div class="item-footer"><a href="${escaparHtml(video.url)}" target="_blank" rel="noopener noreferrer" class="btn-action" style="background:#dc2626">Ver video</a></div></div>`;
+    });
+  }
 
   // 1. SECCIÓN: Noticias en Tiempo Real
   if (noticias.length > 0) {
@@ -755,13 +926,42 @@ function renderizarResultados(data) {
     });
   }
 
+  if (redditPosts.length > 0) {
+    html += `
+      <div class="section-title-container" style="margin-top: 20px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="display: inline-block; width: 10px; height: 10px; background-color: #ff4500; border-radius: 50%;"></span>
+          <h3 style="font-size: 0.95rem; font-weight: 700;">Conversaciones electorales en Reddit (${redditPosts.length})</h3>
+        </div>
+        <span style="font-size: 0.75rem; color: #ff4500; font-weight: 600;">Búsqueda pública RSS</span>
+      </div>
+    `;
+    redditPosts.forEach(post => {
+      const link = /^https:\/\/(www\.)?reddit\.com\//i.test(post.url) ? post.url : "https://www.reddit.com/";
+      html += `
+        <div class="item-card" style="border-left: 4px solid #ff4500;">
+          <div class="item-card-header">
+            <strong>${escaparHtml(post.fuente || "Reddit")}</strong>
+            <span style="font-size: 0.75rem; color: #94a3b8;">${escaparHtml(formatearFechaSafe(post.fecha))}</span>
+          </div>
+          <div class="item-title" style="font-weight: 600;">${escaparHtml(post.titulo)}</div>
+          ${post.text ? `<div class="item-body" style="font-size: 0.875rem; line-height: 1.45; margin-top: 8px;">${escaparHtml(post.text)}</div>` : ""}
+          <div class="item-footer" style="margin-top: 10px;">
+            <span style="font-size: 0.75rem; color: #ff4500;">Reddit · resultados públicos</span>
+            <a href="${escaparHtml(link)}" target="_blank" rel="noopener noreferrer" class="btn-action" style="background: #ff4500;">Ver publicación</a>
+          </div>
+        </div>
+      `;
+    });
+  }
+
   // 4. SECCIÓN: Publicaciones en Bluesky (AT Protocol)
   if (blueskyPosts.length > 0 || blueskyNationalPosts.length > 0) {
     html += `
       <div class="section-title-container" style="margin-top: 20px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
         <div style="display: flex; align-items: center; gap: 8px;">
           <span style="display: inline-block; width: 10px; height: 10px; background-color: #0285ff; border-radius: 50%;"></span>
-          <h3 style="font-size: 0.95rem; font-weight: 700;">Publicaciones electorales locales en Bluesky (${blueskyPosts.length})</h3>
+          <h3 style="font-size: 0.95rem; font-weight: 700;">Publicaciones electorales en Bluesky (${blueskyPosts.length})</h3>
         </div>
         <span style="font-size: 0.75rem; color: #0285ff; font-weight: 600;">🦋 Red Descentralizada</span>
       </div>
@@ -862,6 +1062,7 @@ async function inicializarChartsDashboard() {
         cargarEstadisticasDashboard(provVal);
       });
     }
+
   }
 
   const dashSelect = document.getElementById("dashboard-province-select");
@@ -903,7 +1104,7 @@ async function cargarEstadisticasDashboard(provincia = "todas") {
   renderizarChartFuentes(null);
   renderizarChartProvincias(null);
   const summary = document.getElementById("summary-content");
-  if (summary) summary.textContent = "Las estadísticas aparecerán cuando el colector del servidor las guarde en Firebase.";
+  if (summary) summary.textContent = "No hay información disponible por el momento.";
   if (loadingOverlay) {
     setTimeout(() => { loadingOverlay.style.display = "none"; }, 250);
   }
@@ -919,7 +1120,7 @@ function actualizarResumenYSincronizacion(data, provincia) {
   if (liveUpdateText) {
     liveUpdateText.textContent = updatedAt && !Number.isNaN(updatedAt.getTime())
       ? `Datos actualizados: ${updatedAt.toLocaleString('es-EC')}`
-      : "Sin datos guardados";
+      : "No hay información por el momento.";
   }
 
   const nombreProvincia = (provincia === "todas" || !provincia) ? "Ecuador (Nacional)" : provincia;
@@ -934,7 +1135,7 @@ function actualizarResumenYSincronizacion(data, provincia) {
     // Generación de resumen dinámico fallback
     const provName = (provincia === "todas" || !provincia) ? "Ecuador" : provincia;
     if (summaryContent) {
-      summaryContent.textContent = `Aún no hay estadísticas guardadas para ${provName}. El servidor las mostrará cuando termine la primera recolección.`;
+      summaryContent.textContent = `No hay información disponible por el momento para ${provName}.`;
     }
   }
 }
@@ -1076,7 +1277,7 @@ function renderizarPildorasTendencia(keywords = []) {
       </button>
     `;
   });
-  if (!html) html = '<p class="state-desc">Las tendencias aparecerán cuando el colector las guarde en Firebase.</p>';
+  if (!html) html = '<p class="state-desc">No hay tendencias disponibles por el momento.</p>';
   pillsList.innerHTML = html;
 
   pillsList.querySelectorAll(".kw-pill").forEach(pill => {
@@ -1184,7 +1385,7 @@ async function consultarAnalisisPalabraClave(palabra) {
       `;
     }
   } catch (err) {
-    resultBox.innerHTML = `<div style="color: #ef4444; font-size: 0.9rem;">No se pudieron leer las noticias almacenadas en Firebase.</div>`;
+    resultBox.innerHTML = `<div class="state-desc">No hay noticias por el momento.</div>`;
   }
 }
 

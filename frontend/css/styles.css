@@ -419,6 +419,7 @@ body {
 
 /* --- Hero Banner Llamativo con Colapso Suave --- */
 .hero-banner {
+  flex: 0 0 auto;
   background: linear-gradient(135deg, #1e1b4b 0%, #0f172a 100%);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   padding: 16px 28px;
@@ -519,14 +520,16 @@ body {
 .app-container {
   display: flex;
   flex: 1;
-  height: 100%;
+  height: auto;
+  min-height: 0;
   position: relative;
   overflow: hidden;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 #map {
-  flex: 1;
+  flex: 1 1 auto;
+  min-width: 0;
   height: 100%;
   width: 100%;
   z-index: 1;
@@ -534,7 +537,9 @@ body {
 }
 
 .sidebar {
+  flex: 0 0 var(--sidebar-width);
   width: var(--sidebar-width);
+  min-width: var(--sidebar-width);
   height: 100%;
   background: var(--bg-sidebar);
   border-left: 1px solid var(--border-color);
@@ -1187,6 +1192,8 @@ body {
     height: auto;
   }
   .sidebar {
+    flex: 0 0 auto;
+    min-width: 0;
     width: 100%;
     height: auto;
   }

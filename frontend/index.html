@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://apis.google.com https://unpkg.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' http://localhost:* https: wss:; frame-src https://*.firebaseapp.com https://accounts.google.com https://*.google.com https://*.gstatic.com; object-src 'none'; base-uri 'self'; form-action 'self' https:;">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://apis.google.com https://unpkg.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' http://localhost:* http://127.0.0.1:* https: wss:; frame-src 'self' http://localhost:* http://127.0.0.1:* https://*.firebaseapp.com https://accounts.google.com https://*.google.com https://*.gstatic.com; object-src 'none'; base-uri 'self'; form-action 'self' https:;">
   <title>NoAIVerdad - Monitoreo Electoral e Inteligencia Cívica (Ecuador)</title>
   <meta name="description" content="Plataforma cívica para el monitoreo de noticias, desinformación y publicaciones electorales en las 24 provincias de Ecuador.">
   
@@ -16,7 +16,7 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
 
   <!-- Hoja de Estilos de la Aplicación -->
-  <link rel="stylesheet" href="css/styles.css?v=4.3.0">
+  <link rel="stylesheet" href="css/styles.css?v=4.4.0">
 </head>
 <body>
 
@@ -131,6 +131,7 @@
                 <option value="noticias">📰 Noticias de Prensa</option>
                 <option value="verificaciones">⚠️ Posibles Falsas / Fact-Check</option>
                 <option value="bluesky">🦋 Bluesky (Red Social)</option>
+                <option value="youtube">▶️ YouTube (Canales nacionales)</option>
               </select>
             </div>
 
@@ -674,7 +675,7 @@
 
   <!-- Inicialización de Firebase con Credenciales -->
   <script src="js/firebase-config.js?v=4.1.1"></script>
-  <script src="js/firebase-sync.js?v=4.3.0"></script>
+  <script src="js/firebase-sync.js?v=4.4.1"></script>
 
   <!-- Librería JavaScript de Leaflet.js (OpenStreetMap) -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
@@ -683,7 +684,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <!-- Script principal de la aplicación con desactivación de caché -->
-  <script src="js/app.js?v=4.3.0"></script>
+  <script src="js/app.js?v=4.4.1"></script>
 
 </body>
 </html>

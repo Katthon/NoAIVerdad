@@ -9,7 +9,6 @@
     "start": "electron .",
     "web": "npx -y serve frontend -p 3000",
     "build:exe": "electron-builder --win",
-    "build:portable": "electron-builder --win portable",
     "build:dir": "electron-builder --dir"
   },
   "build": {
@@ -25,10 +24,7 @@
       "package.json"
     ],
     "win": {
-      "target": [
-        "nsis",
-        "portable"
-      ],
+      "target": ["nsis", "portable"],
       "icon": "frontend/img/icon.ico"
     },
     "nsis": {
